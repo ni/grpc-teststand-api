@@ -1,0 +1,30 @@
+﻿syntax = "proto3";
+option csharp_namespace = "BTS.ExecutionTraceEvents";
+
+service ExecutionTraceEvents {
+	rpc GetTraceEventMessages(ExecutionTraceEvents_GetTraceEventMessagesRequest) returns (stream ExecutionTraceEvents_GetTraceEventMessagesResponse);
+	rpc GetTraceEventMessagesForAllExecutions(ExecutionTraceEvents_GetTraceEventMessagesForAllExecutionsRequest) returns (stream ExecutionTraceEvents_GetTraceEventMessagesForAllExecutionsResponse);
+	rpc ListenForServerShutdown(ExecutionTraceEvents_ListenForServerShutdownRequest) returns (stream ExecutionTraceEvents_ListenForServerShutdownResponse);
+}
+
+message ExecutionTraceEvents_GetTraceEventMessagesRequest {
+	int64 executionId = 1;
+}
+
+message ExecutionTraceEvents_GetTraceEventMessagesResponse {
+	string messages = 1;
+}
+
+message ExecutionTraceEvents_GetTraceEventMessagesForAllExecutionsRequest {
+}
+
+message ExecutionTraceEvents_GetTraceEventMessagesForAllExecutionsResponse {
+	string messages = 1;
+}
+
+message ExecutionTraceEvents_ListenForServerShutdownRequest {
+}
+
+message ExecutionTraceEvents_ListenForServerShutdownResponse {
+	bool shuttingDown = 1;
+}

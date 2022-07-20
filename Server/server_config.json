@@ -1,0 +1,10 @@
+{
+  "port": 5001,
+  "security": {
+    "server_cert": "server_self_signed_crt.pem",
+    "server_key": "server_privatekey.pem",
+    "server_cert_pfx": "",
+    "server_cert_pfx_password": "",
+    "root_cert": "client_self_signed_crt.pem"
+  }
+}
