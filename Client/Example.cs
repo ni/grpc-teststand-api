@@ -5,9 +5,7 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Reflection;
-using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -49,8 +47,9 @@ namespace ExampleClient
 		const string NotExecutedSequenceFile = "Not Executed";
 		const string AddGlobal = "Add Global";
 		const string DeleteGlobal = "Delete Global";
+		const string NotConnected = "NotConnected";
 		const string SecureConnection = "SecureConnection";
-		const string UnsecureConnection = "UnsecureConnection";
+		const string NotSecureConnection = "NotSecureConnection";
 
 		const long IdForStreamForTracingAllExecutions = -1;
 
@@ -93,9 +92,10 @@ namespace ExampleClient
 
 		private int _valueForSelectedItemIndex = -1;
 		private ClientOptions _clientOptions;
+		private bool _connectionIsSecured;
+		private CreateChannelHelper _channelHelper;
 
-		private static X509Certificate2 _clientCertificate;
-		private static X509Certificate2 _serverCertificate;
+		private ToolTipEx _numTestSocketsNumericUpDownToolTip;
 
 		public Example(ClientOptions options)
 		{
@@ -105,12 +105,15 @@ namespace ExampleClient
 
 			_clientOptions = options;
 
+			_connectionTypePictureBox.Image = new Bitmap(_imageList[NotConnected]);
 			_connectionStatusDescriptionLabel.Text = ConnectionStatusDisconnected;
 			_connectionStatusPictureBox.Image = new Bitmap(_imageList[ConnectionStatusDisconnected]);
 			_executionStateDescriptionLabel.Text = string.Empty;
 
 			_addGlobalButton.Image = new Bitmap(_imageList[AddGlobal]);
 			_deleteGlobalButton.Image = new Bitmap(_imageList[DeleteGlobal]);
+
+			_channelHelper = new CreateChannelHelper();
 		}
 
 		private void InitializeImageList()
@@ -127,8 +130,9 @@ namespace ExampleClient
 			_imageList[ExecutionStateTerminating] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.ExecutionTerminating.ico");
 			_imageList[AddGlobal] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.Add.ico");
 			_imageList[DeleteGlobal] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.Delete.ico");
-			_imageList[SecureConnection] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.SecuredConnection.ico");
-			_imageList[UnsecureConnection] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.UnsecuredConnection.ico");
+			_imageList[NotConnected] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.NotConnected.png");
+			_imageList[SecureConnection] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.SecuredConnection.png");
+			_imageList[NotSecureConnection] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.NotSecuredConnection.png");
 		}
 
 		private void SetConnectionStatus(bool isConnected)
@@ -158,19 +162,21 @@ namespace ExampleClient
 					_serverHeartbeatTimer.Stop();
 				}
 
-				string connectionStatusString;
-				string connectionStatusImageName;
+				string connectionStatusString, connectionStatusImageName, connectionType;
 				if (_isConnected)
 				{
 					connectionStatusString = ConnectionStatusConnected;
-					connectionStatusImageName = _serverCertificate != null ? SecureConnection : UnsecureConnection;
+					connectionStatusImageName = ConnectionStatusConnected;
+					connectionType = _connectionIsSecured ? SecureConnection : NotSecureConnection;
 				}
 				else
 				{
 					connectionStatusString = ConnectionStatusDisconnected;
 					connectionStatusImageName = ConnectionStatusDisconnected;
+					connectionType = NotConnected;
 				}
 
+				_connectionTypePictureBox.Image = new Bitmap(_imageList[connectionType]);
 				_connectionStatusPictureBox.Image = new Bitmap(_imageList[connectionStatusImageName]);
 				_connectionStatusDescriptionLabel.Text = connectionStatusString;
 			}
@@ -190,167 +196,35 @@ namespace ExampleClient
 					_gRPCChannel = null;
 				}
 
-				_clientCertificate?.Dispose();
-				_serverCertificate?.Dispose();
-
-				_gRPCChannel = OpenChannel(_serverAddressTextBox.Text, _clientOptions);
-
-				// create the service clients for the interfaces we want to use 
-				SetupServiceClients();
-
-				// Start worker thread to listen for server shutdown
-				_ = Task.Run(async () => await StartListeningForServerShutdownAsync());
-
-				// start clean in case this is a reconnect from the same machine as prior run.  might not be necessary if we distinguish connection by process id in the future as noted in USER STORY 1631323
-				_instanceLifetimeClient.Clear(new InstanceLifetime_ClearRequest { DiscardConnection = true });
-
-				// the engine is used a lot, make sure we have a reference handy
-				GetEngineReference();
-
-				// Add station globals to the list view
-				RefreshStationGlobals();
-
-				InitializeProcessModelInformation();
-
-				LogLine("Connection Succeeded.");
-				SetConnectionStatus(true);
-			}
-		}
-
-		private static GrpcChannel OpenChannel(string serverAddress, ClientOptions clientOptions)
-		{
-			// The TestStand service we are connecting needs to distinguish each connection.  This is needed
-			// to keep track of the lifetime of TestStand objects. For this reason, we need to give the channel
-			// a unique connection id. Using a GUID will guarantee a unique connection id.
-			string connectionId = Guid.NewGuid().ToString();
-
-			var httpHandler = new HttpClientHandler();
-			var httpClient = new HttpClient(httpHandler);
-			var channelCredentials = ChannelCredentials.Insecure;
-
-			// The default timeout is 100 seconds (see
-			// https://docs.microsoft.com/en-us/dotnet/api/system.net.http.httpclient.timeout?view=net-5.0).
-			// This will cause gRPC calls to timeout after 100 seconds. This is not acceptable for TestStand.
-			// When asynchronously waiting for an execution to complete using WaitForEndExAsync for example,
-			// the execution can easily take more than 100 seconds which will cause a timeout error. Also,
-			// this app asynchronously listens for a server shutdown event. This will also timeout since the
-			// server and the client can run for a long time.  
-			//
-			// To simplify this example, we are going to have an infinite timeout for all calls.
-			httpClient.Timeout = System.Threading.Timeout.InfiniteTimeSpan;
-
-			bool useSsl = !string.IsNullOrEmpty(clientOptions.ServerCertificatePath)
-				|| !string.IsNullOrEmpty(clientOptions.ServerCertificateFriendlyName);
-			if (useSsl)
-			{
-				channelCredentials = CreateSecureChannelCredentials(httpHandler, connectionId, clientOptions);
-			}
-			else
-			{
-				// Add the "connection-id" http header to every request.
-				httpClient.DefaultRequestHeaders.Add("connection-id", connectionId);
-			}
-
-			string fullServerAddress = useSsl ? "https://" : "http://";
-			fullServerAddress += serverAddress + ":" + clientOptions.Port.ToString();
-
-			var channel = GrpcChannel.ForAddress(fullServerAddress, new GrpcChannelOptions
-			{
-				Credentials = channelCredentials,
-				HttpClient = httpClient
-			});
-
-			return channel;
-		}
-
-		private static ChannelCredentials CreateSecureChannelCredentials(HttpClientHandler httpHandler, string connectionId, ClientOptions clientOptions)
-        {
-			// Only allow calls without a trusted certificate during app development. Production apps should always use trusted certificates.
-			// https://docs.microsoft.com/en-us/aspnet/core/grpc/troubleshoot?view=aspnetcore-5.0#call-a-grpc-service-with-an-untrustedinvalid-certificate-1should
-			if (!string.IsNullOrEmpty(clientOptions.ServerCertificateFriendlyName))
-			{
-				_serverCertificate = FindCertificateInCertificatesStore(clientOptions.ServerCertificateFriendlyName);
-			}
-			else
-			{
-				_serverCertificate = new X509Certificate2(clientOptions.ServerCertificatePath);
-			}
-
-			// When using a self-signed certificate and not installing it in the client's Trusted Root Certification
-			// Authorities certificate store, we need to validate the server certificate ourselves.  To do this, we
-			// need to provide a certificate validation callback method to the HttpClientHandler.
-			httpHandler.ServerCertificateCustomValidationCallback = (requestMessage, certificate, chain, sslPolicyErrors) =>
-			{
-				// If there are no errors, there is nothing to do.
-				if (sslPolicyErrors == System.Net.Security.SslPolicyErrors.None)
+				_gRPCChannel = _channelHelper.OpenChannel(_serverAddressTextBox.Text, _clientOptions, out _connectionIsSecured, out string connectionErrors);
+				if (_gRPCChannel != null)
 				{
-					return true;
+					// create the service clients for the interfaces we want to use 
+					SetupServiceClients();
+
+					// Start worker thread to listen for server shutdown
+					_ = Task.Run(async () => await StartListeningForServerShutdownAsync());
+
+					// start clean in case this is a reconnect from the same machine as prior run.  might not be necessary if we distinguish connection by process id in the future as noted in USER STORY 1631323
+					_instanceLifetimeClient.Clear(new InstanceLifetime_ClearRequest { DiscardConnection = true });
+
+					// the engine is used a lot, make sure we have a reference handy
+					GetEngineReference();
+
+					// Add station globals to the list view
+					RefreshStationGlobals();
+
+					InitializeProcessModelInformation();
+
+					LogLine("Connection Succeeded.");
+					SetConnectionStatus(true);
 				}
-
-				// For this example, we use our copy of the server certificate to compare the thumbprint againts the server
-				// provided certificate.  If they match, we allow the connection.  For production code, this is not 
-				// required when using trusted certificates.
-				return certificate.Thumbprint == _serverCertificate.Thumbprint;
-			};
-
-			// When doing mutual TLS, a client certificate needs to be provided. If there is one, load it and add it to the client certificates.
-			if (!string.IsNullOrEmpty(clientOptions.ClientCertificatePFXPath))
-			{
-				_clientCertificate = new X509Certificate2(clientOptions.ClientCertificatePFXPath, clientOptions.ClientCertificatePFXPassword);
-			}
-			else if (!string.IsNullOrEmpty(clientOptions.ClientCertificatePath) && !string.IsNullOrEmpty(clientOptions.ClientKeyPath))
-			{
-				var clientCertificate = X509Certificate2.CreateFromPemFile(clientOptions.ClientCertificatePath, clientOptions.ClientKeyPath);
-
-				// ASP.NET Core apps expect pfx certificates so we need to create one.
-				_clientCertificate = new X509Certificate2(clientCertificate.Export(X509ContentType.Pfx));
-			}
-
-			if (_clientCertificate != null)
-			{
-				httpHandler.ClientCertificates.Add(_clientCertificate);
-			}
-
-			// Add the "connection-id" http header to every request.
-			var callCredentials = CallCredentials.FromInterceptor(((context, metadata) =>
-			{
-				metadata.Add("connection-id", connectionId);
-				return Task.CompletedTask;
-			}));
-
-			return ChannelCredentials.Create(new SslCredentials(), callCredentials);
-		}
-
-		private static X509Certificate2 FindCertificateInCertificatesStore(string friendlyName)
-		{
-			foreach (var storeLocation in (StoreLocation[])Enum.GetValues(typeof(StoreLocation)))
-			{
-				foreach (StoreName storeName in (StoreName[])Enum.GetValues(typeof(StoreName)))
-				{
-					var store = new X509Store(storeName, storeLocation);
-
-					try
-					{
-						store.Open(OpenFlags.ReadOnly | OpenFlags.OpenExistingOnly);
-
-						foreach (var certificate in store.Certificates)
-						{
-							// For our example, we are using the friendly name to match the cerfiticate in the certificate store.
-							// Other properties can be used to find the certificate.
-							if (string.Equals(certificate.FriendlyName, friendlyName, StringComparison.OrdinalIgnoreCase))
-							{
-								return certificate;
-							}
-						}
-					}
-					catch
-                    {
-						// If the store does not exist, an exception is thrown. Ignore the error.
-					}
+				else
+                {
+					LogLine(connectionErrors);
+					SetConnectionStatus(false);
 				}
 			}
-
-			return null;
 		}
 
 		private void SetupServiceClients()
@@ -445,6 +319,7 @@ namespace ExampleClient
 				}).ReturnValue;
 			string[] processModels = mruList.Split('|');
 
+			_stationModelComboBox.Items.Clear();
 			_stationModelComboBox.Items.AddRange(processModels);
 
 			// Get the active process model and the number of test sockets
@@ -456,55 +331,77 @@ namespace ExampleClient
 				}).ReturnValue;
 
 			_stationModelComboBox.Text = Path.GetFileName(modelPath);
+
+			// Always dispose the tooltip. It will be recreated below if needed again.
+			_numTestSocketsNumericUpDownToolTip?.Dispose();
+			_numTestSocketsNumericUpDownToolTip = null;
+
 			_numTestSocketsNumericUpDown.Value = GetMultipleUUTSettingsNumberOfTestSocketsOption();
+			if (_numTestSocketsNumericUpDown.Value == 0)
+            {
+				_numTestSocketsNumericUpDown.Enabled = false;
+
+				string tooltip = "This option is not available because the model options file is not found on the server.\n" +
+                    "Change a model option on the server to create the file.\n" +
+                    "Reconnect to the server to enable this option when using Batch and Parallel models.";
+				_numTestSocketsNumericUpDownToolTip = new ToolTipEx(this, _numTestSocketsNumericUpDown, tooltip);
+			}
 		}
 
-		private StationOptionsInstance GetStationOptions()
+        private StationOptionsInstance GetStationOptions()
 		{
 			return _engineClient.Get_StationOptions(new EngineClass_Get_StationOptionsRequest { Instance = _engine }).ReturnValue;
 		}
 
 		private int GetMultipleUUTSettingsNumberOfTestSocketsOption()
 		{
+			// Zero is not a valid value for number of test sockets. I cannot return -1 since the value is set on
+			// _numTestSocketsNumericUpDown and that control does not accept negative values.
+			int numberOfTestSockets = 0;
+
 			PropertyObjectInstance modelOptions = GetProcessModelOptions();
+			if (modelOptions != null)
+			{
+				// Get number of test sockets
+				numberOfTestSockets = (int)_propertyObjectClient.GetValNumber(
+					new PropertyObject_GetValNumberRequest
+					{
+						Instance = modelOptions,
+						LookupString = NumberOfTestSocketsPropertyName,
+						Options = PropertyOptions.PropOptionNoOptions
+					}).ReturnValue;
+			}
 
-			// Get number of test sockets
-			double numberOfTestSockets = _propertyObjectClient.GetValNumber(
-				new PropertyObject_GetValNumberRequest
-				{
-					Instance = modelOptions,
-					LookupString = NumberOfTestSocketsPropertyName,
-					Options = PropertyOptions.PropOptionNoOptions
-				}).ReturnValue;
-
-			return (int)numberOfTestSockets;
+			return numberOfTestSockets;
 		}
 
 		private void SetMultipleUUTSettingsNumberOfTestSocketsOption(int numberOfSockets)
 		{
 			// Always get the model options from the server before setting the new number of test sockets.
 			PropertyObjectInstance modelOptions = GetProcessModelOptions();
+			if (modelOptions != null)
+			{
+				// Set the number of test sockets
+				_propertyObjectClient.SetValNumber(
+					new PropertyObject_SetValNumberRequest
+					{
+						Instance = modelOptions,
+						LookupString = NumberOfTestSocketsPropertyName,
+						NewValue = numberOfSockets,
+						Options = PropertyOptions.PropOptionNoOptions
+					});
 
-			// Set the number of test sockets
-			_propertyObjectClient.SetValNumber(
-				new PropertyObject_SetValNumberRequest
-				{
-					Instance = modelOptions,
-					LookupString = NumberOfTestSocketsPropertyName,
-					NewValue = numberOfSockets,
-					Options = PropertyOptions.PropOptionNoOptions
-				});
-
-			// Persist the new value
-			string modelOptionsFilePath = GetModelOptionsFilePath();
-			_propertyObjectClient.Write(
-				new PropertyObject_WriteRequest
-				{
-					Instance = modelOptions,
-					PathString = modelOptionsFilePath,
-					ObjectName = ModelOptionsFileSectionName,
-					RWoptions = ReadWriteOptions.RwoptionEraseAll
-				});
+				// Persist the new value
+				string modelOptionsFilePath = GetModelOptionsFilePath();
+				_propertyObjectClient.Write(
+					new PropertyObject_WriteRequest
+					{
+						Instance = modelOptions,
+						PathString = modelOptionsFilePath,
+						ObjectName = ModelOptionsFileSectionName,
+						RWoptions = ReadWriteOptions.RwoptionEraseAll
+					});
+			}
 		}
 
 		private PropertyObjectInstance GetProcessModelOptions()
@@ -524,16 +421,32 @@ namespace ExampleClient
 					Options = PropertyOptions.PropOptionNoOptions
 				}).ReturnValue;
 
-			// Read the model options
-			_propertyObjectClient.ReadEx(
-				new PropertyObject_ReadExRequest
-				{
-					Instance = modelOptions,
-					PathString = modelOptionsFilePath,
-					ObjectName = ModelOptionsFileSectionName,
-					RWoptions = ReadWriteOptions.RwoptionNoOptions,
-					HandlerType = TypeConflictHandlerTypes.ConflictHandlerUseGlobalType
-				});
+			try
+			{
+				// Read the model options
+				_propertyObjectClient.ReadEx(
+					new PropertyObject_ReadExRequest
+					{
+						Instance = modelOptions,
+						PathString = modelOptionsFilePath,
+						ObjectName = ModelOptionsFileSectionName,
+						RWoptions = ReadWriteOptions.RwoptionNoOptions,
+						HandlerType = TypeConflictHandlerTypes.ConflictHandlerUseGlobalType
+					});
+			}
+			catch (RpcException rpcException)
+            {
+				if (rpcException.Status.Detail.Contains("Unable to open file"))
+                {
+					// File does not exist on the server. Return a null object to let the caller know we
+					// cannot get the model options.
+					modelOptions = null;
+                }
+				else
+                {
+					throw;
+                }
+			}
 
 			return modelOptions;
 		}
@@ -549,9 +462,6 @@ namespace ExampleClient
 					TestStandPath = TestStandPaths.TestStandPathConfig
 				}).ReturnValue;
 			modelOptionsFilePath = Path.Combine(modelOptionsFilePath, ModelOptionsFilename);
-
-			// We will assume the file always exists
-			Debug.Assert(File.Exists(modelOptionsFilePath));
 
 			return modelOptionsFilePath;
 		}
@@ -727,8 +637,9 @@ namespace ExampleClient
 			_entryPointLabel.Enabled = usingModel;
 			_entryPointComboBox.Enabled = usingModel;
 
-			_numberOfTestSocketsLabel.Enabled = _nonSequentialProcessModelName != null;
-			_numTestSocketsNumericUpDown.Enabled = _nonSequentialProcessModelName != null;
+			bool enableNumberOfTestSocketsOption = _nonSequentialProcessModelName != null && _numTestSocketsNumericUpDown.Value != 0;
+			_numberOfTestSocketsLabel.Enabled = enableNumberOfTestSocketsOption;
+			_numTestSocketsNumericUpDown.Enabled = enableNumberOfTestSocketsOption;
 		}
 
 		private void OnSequenceFileNameComboBoxSelectedIndexChanged(object sender, EventArgs e)

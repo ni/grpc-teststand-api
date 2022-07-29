@@ -1,7 +1,7 @@
 REM This example assumes you have openssl installed in your machine. See https://wiki.openssl.org/index.php/Binaries.
 
 SET mypass=password123
-SET NumberOfDaysCertificateIsValid=3650
+SET NumberOfDaysCertificateIsValid=365
 SET RootSubject="/C=US/ST=Texas/L=Austin/O=NI/OU=TestStand/CN=localhost.root"
 SET ServerSubject="/C=US/ST=Texas/L=Austin/O=NI/OU=TestStand/CN=localhost.Server"
 SET ServerFriendlyName="TestStand gRPC Server"

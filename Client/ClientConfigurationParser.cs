@@ -2,13 +2,12 @@
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using static System.FormattableString;
 
 namespace ExampleClient
 {
     /// <summary>
     /// This parser will read the server json configuration file and will load any specified certificates.
-    /// It expects the names and locations specified in this page: https://github.com/ni/grpc-device/wiki/Server-Security-Support.
+    /// It expects the names and locations specified in this page: TBD.
     /// </summary>
     public class ClientConfigurationParser
     {

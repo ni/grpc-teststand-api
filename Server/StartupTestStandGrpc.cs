@@ -1,9 +1,7 @@
 ﻿using System;
-using System.IO;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -90,9 +88,9 @@ namespace TestStandGrpcApi
                         ConfigureSecureConnectionIfRequired(configureOptions);
                     });
 
-                    // To make a connection secure, certificates filenames must be provided in the config file.
-                    // If the filenames were left blank or no config file was specified, the connection will
-                    // not be secured.
+                    // To make a connection secure (server-side TLS), the server certificate information needs
+                    // to be provided in the config file. If the information is left blank or no config file is
+                    // specified, the connection will not be secured.
                     UsesHttps = !string.IsNullOrEmpty(_serverOptions.ServerCertificatePFXPath)
                         || !string.IsNullOrEmpty(_serverOptions.ServerCertificateFriendlyName)
                         || (!string.IsNullOrEmpty(_serverOptions.ServerCertificatePath)
@@ -160,15 +158,20 @@ namespace TestStandGrpcApi
 
             if (_serverCertificate != null)
             {
+                // This is where we set the server certificate to authenticate HTTPS connections.
                 configureOptions.ServerCertificate = _serverCertificate;
 
-                // If a client certificate has been specified, we need to validate the client. This is effectively
-                // supporting mutual TLS.
+                // If a client certificate has been specified, we need to validate the client. The server needs
+                // to verify who is connecting.  This is effectively implementing mutual TLS.
                 if (!string.IsNullOrEmpty(_serverOptions.ClientCertificatePath))
                 {
                     if (_clientCertificate == null)
                     {
                         _clientCertificate = new X509Certificate2(_serverOptions.ClientCertificatePath);
+                        if(_clientCertificate == null)
+                        {
+                            throw new Exception("Failed to load client certificate for mutual TLS. Verify certificate exists on disk.");
+                        }
                     }
 
                     configureOptions.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
@@ -187,6 +190,10 @@ namespace TestStandGrpcApi
                         return certificate.Thumbprint == _clientCertificate.Thumbprint;
                     };
                 }
+            }
+            else
+            {
+                throw new Exception("Failed to load server's certificate. Make sure certificate exists on disk or it has been added to the machine's certificate store if using a friendly name.");
             }
         }
 

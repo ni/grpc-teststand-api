@@ -18,7 +18,10 @@
     <None Remove="Resources\ExecutionRunning.ico" />
     <None Remove="Resources\ExecutionTerminated.ico" />
     <None Remove="Resources\ExecutionTerminating.ico" />
+    <None Remove="Resources\NotConnected.png" />
+    <None Remove="Resources\NotSecuredConnection.png" />
     <None Remove="Resources\SecuredConnection.ico" />
+    <None Remove="Resources\SecuredConnection.png" />
     <None Remove="Resources\StatusConnected.png" />
     <None Remove="Resources\StatusDisconnected.png" />
     <None Remove="Resources\UnsecuredConnection.ico" />
@@ -45,8 +48,9 @@
     <EmbeddedResource Include="Resources\ExecutionRunning.ico" />
     <EmbeddedResource Include="Resources\ExecutionTerminated.ico" />
     <EmbeddedResource Include="Resources\ExecutionTerminating.ico" />
-    <EmbeddedResource Include="Resources\UnsecuredConnection.ico" />
-    <EmbeddedResource Include="Resources\SecuredConnection.ico" />
+    <EmbeddedResource Include="Resources\NotConnected.png" />
+    <EmbeddedResource Include="Resources\NotSecuredConnection.png" />
+    <EmbeddedResource Include="Resources\SecuredConnection.png" />
     <EmbeddedResource Include="Resources\StatusConnected.png" />
     <EmbeddedResource Include="Resources\StatusDisconnected.png" />
   </ItemGroup>

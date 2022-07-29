@@ -14,10 +14,14 @@ namespace ExampleClient
 		/// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
 		protected override void Dispose(bool disposing)
 		{
-			if (disposing && (components != null))
-			{
-				components.Dispose();
-			}
+            if (disposing)
+            {
+                components?.Dispose();
+                components = null;
+
+                _numTestSocketsNumericUpDownToolTip?.Dispose();
+                _numTestSocketsNumericUpDownToolTip = null;
+            }
 			base.Dispose(disposing);
 		}
 
@@ -79,9 +83,13 @@ namespace ExampleClient
             this._verticalLine = new ExampleClient.Line();
             this._outputLabel = new System.Windows.Forms.Label();
             this._horizontalLine = new ExampleClient.Line();
+            this._serverAddressPanel = new System.Windows.Forms.Panel();
+            this._connectionTypePictureBox = new System.Windows.Forms.PictureBox();
             ((System.ComponentModel.ISupportInitialize)(this._numTestSocketsNumericUpDown)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this._connectionStatusPictureBox)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this._executionStatePictureBox)).BeginInit();
+            this._serverAddressPanel.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this._connectionTypePictureBox)).BeginInit();
             this.SuspendLayout();
             // 
             // _logTextBox
@@ -135,11 +143,11 @@ namespace ExampleClient
             // 
             // _serverAddressTextBox
             // 
-            this._serverAddressTextBox.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this._serverAddressTextBox.Location = new System.Drawing.Point(110, 51);
-            this._serverAddressTextBox.Multiline = true;
+            this._serverAddressTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this._serverAddressTextBox.Location = new System.Drawing.Point(23, 3);
             this._serverAddressTextBox.Name = "_serverAddressTextBox";
-            this._serverAddressTextBox.Size = new System.Drawing.Size(154, 25);
+            this._serverAddressTextBox.PlaceholderText = "Server Name/IP";
+            this._serverAddressTextBox.Size = new System.Drawing.Size(127, 16);
             this._serverAddressTextBox.TabIndex = 3;
             this._serverAddressTextBox.Tag = "";
             this._serverAddressTextBox.Text = "127.0.0.1";
@@ -599,11 +607,31 @@ namespace ExampleClient
             this._horizontalLine.TabStop = false;
             this._horizontalLine.Thickness = 1;
             // 
+            // _serverAddressPanel
+            // 
+            this._serverAddressPanel.BackColor = System.Drawing.SystemColors.Window;
+            this._serverAddressPanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this._serverAddressPanel.Controls.Add(this._connectionTypePictureBox);
+            this._serverAddressPanel.Controls.Add(this._serverAddressTextBox);
+            this._serverAddressPanel.Location = new System.Drawing.Point(110, 51);
+            this._serverAddressPanel.Name = "_serverAddressPanel";
+            this._serverAddressPanel.Size = new System.Drawing.Size(154, 25);
+            this._serverAddressPanel.TabIndex = 43;
+            // 
+            // _connectionTypePictureBox
+            // 
+            this._connectionTypePictureBox.Location = new System.Drawing.Point(4, 3);
+            this._connectionTypePictureBox.Name = "_connectionTypePictureBox";
+            this._connectionTypePictureBox.Size = new System.Drawing.Size(16, 16);
+            this._connectionTypePictureBox.TabIndex = 4;
+            this._connectionTypePictureBox.TabStop = false;
+            // 
             // Example
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1129, 591);
+            this.Controls.Add(this._serverAddressPanel);
             this.Controls.Add(this._horizontalLine);
             this.Controls.Add(this._outputLabel);
             this.Controls.Add(this._verticalLine);
@@ -643,7 +671,6 @@ namespace ExampleClient
             this.Controls.Add(this._sequenceFileNameLabel);
             this.Controls.Add(this._connectButton);
             this.Controls.Add(this._serverAddressLabel);
-            this.Controls.Add(this._serverAddressTextBox);
             this.Controls.Add(this._processModelComboBox);
             this.Controls.Add(this._runSequenceFileButton);
             this.Controls.Add(this._logLabel);
@@ -659,6 +686,9 @@ namespace ExampleClient
             ((System.ComponentModel.ISupportInitialize)(this._numTestSocketsNumericUpDown)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this._connectionStatusPictureBox)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this._executionStatePictureBox)).EndInit();
+            this._serverAddressPanel.ResumeLayout(false);
+            this._serverAddressPanel.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this._connectionTypePictureBox)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -715,6 +745,8 @@ namespace ExampleClient
         private Line _verticalLine;
         private System.Windows.Forms.Label _outputLabel;
         private Line _horizontalLine;
+        private System.Windows.Forms.Panel _serverAddressPanel;
+        private System.Windows.Forms.PictureBox _connectionTypePictureBox;
     }
 }
 

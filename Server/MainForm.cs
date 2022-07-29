@@ -476,8 +476,8 @@ namespace TestExecServer
 
 			if (!string.IsNullOrEmpty(TestStandGrpcApi.Server.ErrorMessage))
             {
-				// Show the error message after MainForm becomes visible. This make sure the error dialog is in front of the
-				// MainForm making easier to find.
+				// Try to show the error dialog after the MainForm becomes visible. It is not always guarantee that 
+				// MainForm will show before the error dialog when using BeginInvoke, however, in most cases it does.
 				BeginInvoke(() =>
 				{
 					string message = "Failed to initialize gRPC service with following error(s):\n\n" + TestStandGrpcApi.Server.ErrorMessage;
