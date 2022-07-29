@@ -8,6 +8,4 @@ To Do Items:
 
 - Arrange to hide the main window if that is needed for the application. Otherwise leave it visible to aid with debugging. For hiding a winforms app main windows, maybe start here? https://stackoverflow.com/questions/683896/any-way-to-create-a-hidden-main-window-in-c/4913580
 
-- If the project is not finding its nuget dependency of NationalInstruments.TestStand.gRPC.Server (0.5.0-*), add http://ninugetsvr/nuget/packages-prerelease/ as a package source (while connected to VPN) and install it from that source.
-
-- if you get error 'Unable to configure HTTPS endpoint.', refer to https://ni.visualstudio.com/DevCentral/_workitems/edit/1710839. 
+- If the project is not finding its nuget dependency of NationalInstruments.TestStand.gRPC.Server (0.5.0-*), add https://api.nuget.org/v3/index.json as a package source.
