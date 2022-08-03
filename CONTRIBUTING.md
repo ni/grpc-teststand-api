@@ -20,11 +20,6 @@ this repository.
 See [GitHub's official documentation](https://help.github.com/articles/using-pull-requests/) for more details.
 
 
-# Getting Started
-
-- Open the Client or Server folder and read the Readme.txt located within.
-
-
 # Developer Certificate of Origin (DCO)
 
    Developer's Certificate of Origin 1.1
