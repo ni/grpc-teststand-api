@@ -2,6 +2,8 @@
 
 This example demonstrates how to use the TestStand gRPC API from a client application to get status, and control a TestStand user interface running a gRPC service on a local or remote machine. This example consists of two C# .NET projects, a client and a server, which you can run on separate machines to remotely execute TestStand sequence files. 
 
+Subject to change without notice.
+
 ---
 
 ## Prerequisites
@@ -11,7 +13,7 @@ Complete the following steps to configure both the client and server machines.
 1. Install the following software:
     | Software | Server | Client |
     | -------- | -------------- | -------------- |
-    | Visual Studio 2015, 2017, 2019, or 2022 with the .NET and C++ desktop development workloads | Yes | Yes |
+    | Visual Studio 2019, or 2022 with the .NET and C++ desktop development workloads | Yes | Yes |
     | Git | Yes | Yes |
     | TestStand 2021 SP1 or later. Earlier versions of TestStand are untested. | Yes | No |
 
