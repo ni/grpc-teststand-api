@@ -4,7 +4,7 @@
 //			In order for the manifest file to enable the executable to display with the XP theme:
 //			1. The manifest file must have the same name as the executable. For example, if your executable is named MyExecutable.exe, your manifest file is required to have the name MyExecutable.exe.manifest.
 //			2. The manifest file must include the Microsoft.Windows.Common-Controls.
-//			3. The manifest file must reside in the same directory as the executable.
+//			3. The manifest file must reside in the same directory as the executable.  .
 //			Also note that if you enable the Project Properties>>Debug>>Enable Visual Studio Hosting Process option, the XP theme adaption does not occur when debugging the executable
 //			because the Visual Studio environment creates the process and does not allow the manifest file to be embedded into the executable.
 
