@@ -32,7 +32,7 @@ Complete the following steps to prepare the server to accept requests from the c
     3. In **Execution**, set **On Run-Time Error** to **Run Cleanup**.
     4. In **Time Limits**, ensure that none of the properties are set to **Prompt for Action**.
     5. In **Preferences**, deselect **Prompt to Find Files**.
-2. (Optional) To run the example using a server-side TLS connection, add a trusted or self-signed certificate in the `certs` folder, then add the corresponding public and private keys in `server_config.json`. If you do not configure a secure connection, the client and server connection is not secure.
+2. (Optional) Configure a server-side TLS connection or mutual TLS connection. Refer to [Encrypting Connections to the Server](Docs/Encrypt_Connection.md) for more information. If you do not configure a secure connection, the client and server connection is not secure.
 3. In Visual Studio, open `Server/TestExecServer.sln`.
 4. Build and run the solution.
 
@@ -43,8 +43,7 @@ Complete the following steps to prepare the server to accept requests from the c
 The client is a C# GUI application that demonstrates using the TestStand gRPC API to remotely execute sequence files and perform other operations.
 
 Complete the following steps to connect the client to the server.
-1. (Optional) To run the example using a secure connection, open `client_config.json`. For `server_cert`, enter the name of the server certificate, and save.
-2. In Visual Studio, open `Client/ExampleClient.sln`.
+1. (Optional) Configure a server-side TLS connection or mutual TLS connection. Refer to [Encrypting Connections to the Server](Docs/Encrypt_Connection.md) for more information. If you do not configure a secure connection, the client and server connection is not secure.
 2. Build and run the solution.
 3. In the Example TestStand API Client Application window, enter the server IP address in **Server Address**, then click **Connect**. The Status field indicates whether a connection is established. If you have successfully established a secure connection, the IP address field displays a green shield icon. 
 
@@ -72,5 +71,3 @@ After running the sequence file on a server, you can optionally use the TestMoni
 [Overview for gRPC on .NET](https://docs.microsoft.com/en-us/aspnet/core/grpc/?view=aspnetcore-5.0)
 
 [.NET Generic Host in ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host?view=aspnetcore-5.0)
-
-[Server Security Support](https://github.com/ni/grpc-device/wiki/Server-Security-Support)
