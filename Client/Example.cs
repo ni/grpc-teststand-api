@@ -61,7 +61,7 @@ namespace ExampleClient
 
 		// service clients for the interfaces we might want to use
 		private InstanceLifetime.InstanceLifetimeClient _instanceLifetimeClient;
-		private EngineClass.EngineClassClient _engineClient;
+		private Engine.EngineClient _engineClient;
 		private Step.StepClient _stepClient;
 		private Execution.ExecutionClient _executionClient;
 		private Thread.ThreadClient _threadClient;
@@ -71,7 +71,7 @@ namespace ExampleClient
 		private SearchDirectories.SearchDirectoriesClient _searchDirectoriesClient;
 		private SearchDirectory.SearchDirectoryClient _searchDirectoryClient;
 		private StationOptions.StationOptionsClient _stationOptionsClient;
-		private IApplicationMgr.IApplicationMgrClient _applicationMgrClient;
+		private ApplicationMgr.ApplicationMgrClient _applicationMgrClient;
 		private Executions.ExecutionsClient _executionsClient;
 
 		private readonly Dictionary<string, Stream> _imageList = new();
@@ -87,7 +87,7 @@ namespace ExampleClient
 		private readonly Dictionary<long, IDisposable> _traceMessagesStreams = new();
 
 		// remember some objects we create on the server for later use
-		private EngineClassInstance _engine = null;
+		private EngineInstance _engine = null;
 		private ExecutionInstance _activeExecution;
 
 		private int _valueForSelectedItemIndex = -1;
@@ -232,7 +232,7 @@ namespace ExampleClient
 			// with gRPC you need a separate 'client' to talk to each 'service'
 
 			// clients for TestStand API interfaces we want to use
-			_engineClient = new EngineClass.EngineClassClient(_gRPCChannel);
+			_engineClient = new Engine.EngineClient(_gRPCChannel);
 			_stepClient = new Step.StepClient(_gRPCChannel);
 			_executionClient = new Execution.ExecutionClient(_gRPCChannel);
 			_threadClient = new Thread.ThreadClient(_gRPCChannel);
@@ -242,7 +242,7 @@ namespace ExampleClient
 			_searchDirectoriesClient = new SearchDirectories.SearchDirectoriesClient(_gRPCChannel);
 			_searchDirectoryClient = new SearchDirectory.SearchDirectoryClient(_gRPCChannel);
 			_stationOptionsClient = new StationOptions.StationOptionsClient(_gRPCChannel);
-			_applicationMgrClient = new IApplicationMgr.IApplicationMgrClient(_gRPCChannel);
+			_applicationMgrClient = new ApplicationMgr.ApplicationMgrClient(_gRPCChannel);
 			_executionsClient = new Executions.ExecutionsClient(_gRPCChannel);
 
 			// client for the Instance Lifetime API, which lets you tell the server when your client doesn't need specific objects on the server any longer
@@ -288,13 +288,13 @@ namespace ExampleClient
 		{
 			if (_engine == null)
 			{
-				_engine = _engineClient.EngineClass(new EngineClass_EngineClassRequest()).ReturnValue;
+				_engine = _engineClient.Engine(new Engine_EngineRequest()).ReturnValue;
 
 				// in case someone changes the default lifespan, always make the engine have unlimited lifespan
 				_instanceLifetimeClient.SetLifespan(new InstanceLifetime_SetLifespanRequest
 				{
 					Value = new ObjectInstance() { Id = _engine.Id },
-					LifeSpan = new Google.Protobuf.WellKnownTypes.Duration() { Seconds = 0 }
+					LifeSpan = _instanceLifetimeClient.Get_InfiniteLifetime(new InstanceLifetime_Get_InfiniteLifetimeRequest()).ReturnValue
 				});
 			}
 		}
@@ -303,7 +303,7 @@ namespace ExampleClient
 		{
 			// Initialize the process model MRU list
 			PropertyObjectFileInstance configFile = _engineClient.GetEngineConfigFile(
-				new EngineClass_GetEngineConfigFileRequest
+				new Engine_GetEngineConfigFileRequest
 				{
 					Instance = _engine,
 					ConfigFileType = PropertyObjectFileTypes.FileTypeGeneralEngineConfigFile
@@ -350,7 +350,7 @@ namespace ExampleClient
 
         private StationOptionsInstance GetStationOptions()
 		{
-			return _engineClient.Get_StationOptions(new EngineClass_Get_StationOptionsRequest { Instance = _engine }).ReturnValue;
+			return _engineClient.Get_StationOptions(new Engine_Get_StationOptionsRequest { Instance = _engine }).ReturnValue;
 		}
 
 		private int GetMultipleUUTSettingsNumberOfTestSocketsOption()
@@ -412,7 +412,7 @@ namespace ExampleClient
 
 			// Create object to store the model options
 			PropertyObjectInstance modelOptions = _engineClient.NewPropertyObject(
-				new EngineClass_NewPropertyObjectRequest
+				new Engine_NewPropertyObjectRequest
 				{
 					Instance = _engine,
 					ValueType = PropertyValueTypes.PropValTypeNamedType,
@@ -456,7 +456,7 @@ namespace ExampleClient
 			const string ModelOptionsFilename = "TestStandModelModelOptions.ini";
 
 			string modelOptionsFilePath = _engineClient.GetTestStandPath(
-				new EngineClass_GetTestStandPathRequest
+				new Engine_GetTestStandPathRequest
 				{
 					Instance = _engine,
 					TestStandPath = TestStandPaths.TestStandPathConfig
@@ -472,7 +472,7 @@ namespace ExampleClient
 			_stationGlobalsListView.Items.Clear();
 
 			// Always refresh the station global by getting them directly from the server
-			PropertyObjectInstance stationGlobals = _engineClient.Get_Globals(new EngineClass_Get_GlobalsRequest { Instance = _engine }).ReturnValue;
+			PropertyObjectInstance stationGlobals = _engineClient.Get_Globals(new Engine_Get_GlobalsRequest { Instance = _engine }).ReturnValue;
 			int numberOfGlobals = _propertyObjectClient.GetNumSubProperties(
 				new PropertyObject_GetNumSubPropertiesRequest
 				{
@@ -580,7 +580,7 @@ namespace ExampleClient
 
 		private void EnableApplicationDirectorySearchPath()
 		{
-			var searchDirectories = _engineClient.Get_SearchDirectories(new EngineClass_Get_SearchDirectoriesRequest { Instance = _engine }).ReturnValue;
+			var searchDirectories = _engineClient.Get_SearchDirectories(new Engine_Get_SearchDirectoriesRequest { Instance = _engine }).ReturnValue;
 
 			var count = _searchDirectoriesClient.Get_Count(new SearchDirectories_Get_CountRequest { Instance = searchDirectories }).ReturnValue;
 
@@ -664,7 +664,7 @@ namespace ExampleClient
 					EnableApplicationDirectorySearchPath(); // the test.seq file is next to the example server executable
 
 					// get the sequence file to run
-					var sequenceFile = _engineClient.GetSequenceFileEx(new EngineClass_GetSequenceFileExRequest
+					var sequenceFile = _engineClient.GetSequenceFileEx(new Engine_GetSequenceFileExRequest
 					{
 						Instance = _engine,
 						SeqFilePath = _sequenceFileNameComboBox.Text,
@@ -690,7 +690,7 @@ namespace ExampleClient
 						// release file references we no longer need (files require explicit release)
 						if (processModel != null)
 						{
-							_engineClient.ReleaseSequenceFileEx(new EngineClass_ReleaseSequenceFileExRequest
+							_engineClient.ReleaseSequenceFileEx(new Engine_ReleaseSequenceFileExRequest
 							{
 								Instance = _engine,
 								SequenceFileToRelease = processModel,
@@ -698,7 +698,7 @@ namespace ExampleClient
 							});
 						}
 
-						_engineClient.ReleaseSequenceFileEx(new EngineClass_ReleaseSequenceFileExRequest
+						_engineClient.ReleaseSequenceFileEx(new Engine_ReleaseSequenceFileExRequest
 						{
 							Instance = _engine,
 							SequenceFileToRelease = sequenceFile,
@@ -747,7 +747,7 @@ namespace ExampleClient
 					modelName += "Model.seq";
 				}
 
-				processModel = _engineClient.GetSequenceFileEx(new EngineClass_GetSequenceFileExRequest
+				processModel = _engineClient.GetSequenceFileEx(new Engine_GetSequenceFileExRequest
 				{
 					Instance = _engine,
 					SeqFilePath = modelName,
@@ -765,7 +765,7 @@ namespace ExampleClient
 
 		private async Task RunSequenceFileAsync(SequenceFileInstance sequenceFile, string sequenceName, SequenceFileInstance processModel)
 		{
-			var newExecutionRequest = new EngineClass_NewExecutionRequest
+			var newExecutionRequest = new Engine_NewExecutionRequest
 			{
 				Instance = _engine,
 				SequenceFileParam = sequenceFile,
@@ -1228,7 +1228,7 @@ namespace ExampleClient
 			{
 				try
 				{
-					_engineClient.Get_MajorVersion(new EngineClass_Get_MajorVersionRequest { Instance = _engine });
+					_engineClient.Get_MajorVersion(new Engine_Get_MajorVersionRequest { Instance = _engine });
 				}
 				catch (Exception exception)
 				{
@@ -1306,7 +1306,7 @@ namespace ExampleClient
 
 		private void OnAddStationGlobalClick(object sender, EventArgs e)
         {
-			PropertyObjectInstance stationGlobals = _engineClient.Get_Globals(new EngineClass_Get_GlobalsRequest { Instance = _engine }).ReturnValue;
+			PropertyObjectInstance stationGlobals = _engineClient.Get_Globals(new Engine_Get_GlobalsRequest { Instance = _engine }).ReturnValue;
 			int numberOfGlobals = _propertyObjectClient.GetNumSubProperties(
 				new PropertyObject_GetNumSubPropertiesRequest
 				{
@@ -1334,7 +1334,7 @@ namespace ExampleClient
 		private void OnDeleteStationGlobalClick(object sender, EventArgs e)
         {
 			ListViewItem selectedItem = _stationGlobalsListView.Items[_stationGlobalsListView.SelectedIndices[0]];
-			PropertyObjectInstance stationGlobals = _engineClient.Get_Globals(new EngineClass_Get_GlobalsRequest { Instance = _engine }).ReturnValue;
+			PropertyObjectInstance stationGlobals = _engineClient.Get_Globals(new Engine_Get_GlobalsRequest { Instance = _engine }).ReturnValue;
 			_propertyObjectClient.DeleteSubProperty(new PropertyObject_DeleteSubPropertyRequest
 			{
 				Instance = stationGlobals,
@@ -1353,7 +1353,7 @@ namespace ExampleClient
 
 		private void OnCommitGlobalsToDiskClick(object sender, EventArgs e)
 		{
-			_engineClient.CommitGlobalsToDisk(new EngineClass_CommitGlobalsToDiskRequest { Instance = _engine, PromptOnSaveConflicts = true });
+			_engineClient.CommitGlobalsToDisk(new Engine_CommitGlobalsToDiskRequest { Instance = _engine, PromptOnSaveConflicts = true });
 			_commitGlobalsToDiskButton.Enabled = false;
 		}
 
@@ -1378,7 +1378,7 @@ namespace ExampleClient
 		private void SetValueOnGlobalVariable(string newValue)
         {
 			ListViewItem selectedItem = _stationGlobalsListView.Items[_valueForSelectedItemIndex];
-			PropertyObjectInstance stationGlobals = _engineClient.Get_Globals(new EngineClass_Get_GlobalsRequest { Instance = _engine }).ReturnValue;
+			PropertyObjectInstance stationGlobals = _engineClient.Get_Globals(new Engine_Get_GlobalsRequest { Instance = _engine }).ReturnValue;
 			PropertyObjectInstance globalObject = _propertyObjectClient.GetPropertyObject(
 				new PropertyObject_GetPropertyObjectRequest
 				{
@@ -1555,10 +1555,10 @@ namespace ExampleClient
 
 		private ExecutionsInstance GetAllOpenExecutions()
         {
-			var applicationMgrReference = _engineClient.GetInternalOption(new EngineClass_GetInternalOptionRequest { Instance = _engine, Option = InternalOptions.InternalOptionApplicationManager }).Reference;
-			var applicationMgr = new IApplicationMgrInstance { Id = applicationMgrReference.Id };
+			var applicationMgrReference = _engineClient.GetInternalOption(new Engine_GetInternalOptionRequest { Instance = _engine, Option = InternalOptions.InternalOptionApplicationManager }).Reference;
+			var applicationMgr = new ApplicationMgrInstance { Id = applicationMgrReference.Id };
 
-			return _applicationMgrClient.Get_Executions(new IApplicationMgr_Get_ExecutionsRequest { Instance = applicationMgr }).ReturnValue;
+			return _applicationMgrClient.Get_Executions(new ApplicationMgr_Get_ExecutionsRequest { Instance = applicationMgr }).ReturnValue;
 		}
 
 		private void OnListThreadsButtonClick(object sender, EventArgs e)
