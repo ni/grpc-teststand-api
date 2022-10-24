@@ -1,0 +1,192 @@
+# Mapping
+These mappings give a high level overview of how TestStand API objects, methods, and parameters are mapped to the gRPC API.
+
+- API Objects such as `Engine` and `PropertyObject` are exposed as gRPC services.
+- Methods are mapped to RPC calls.
+- Properties are mapped to RPC calls with prepend *Get_* and *Set_* followed by the property name.
+- Input parameters are mapped to request messages.
+- Output parameters and return values are mapped to reply messages.
+
+# API Objects
+The TestStand gRPC API exposes all TestStand API objects as gRPC services. Here is an example of how the `PropertyObject` is mapped to a gRPC .proto (Protobuf) file:
+
+```
+class PropertyObject {
+	Double GetValNumber(String lookupString, Long options)
+	void SetValNumber (String lookupString, Long options, Double newValue)
+	PropertyObject GetPropertyObject (String lookupString, Long options)
+
+         ||
+        \||/
+         \/
+
+service PropertyObject {
+	rpc GetValNumber(PropertyObject_GetValNumberRequest) returns (PropertyObject_GetValNumberResponse);
+    rpc SetValNumber(PropertyObject_SetValNumberRequest) returns (PropertyObject_SetValNumberResponse);
+    rpc GetPropertyObject(PropertyObject_GetPropertyObjectRequest) returns (PropertyObject_GetPropertyObjectResponse);
+ ```
+
+## Object Instances
+Each service has an object instance message defined.  The instance message definition has the name *\<ServiceName\>Instance*.
+
+Since gRPC has no concept of object instances, these instance messages enable you to explicitly provide the object instance to each method. It also allows type checking.
+
+Here is an example of how a `PropertyObject` instance is defined and used as a field in the request message when calling `PropertyObject.GetValNumber`:
+
+```
+message PropertyObjectInstance {
+	string id = 1;
+}
+
+message PropertyObject_GetValNumberRequest {
+	PropertyObjectInstance instance = 1;
+    ...
+}
+```
+
+An object instance has a string id associated with it.  The string id specifies the handle to the TestStand object instance in the server. The lifetime of the TestStand object is managed by the server.  See [Object Lifetime](ObjectLifetime.md) for more details.
+
+Object instances are obtained from a constructor RPC call. The following example shows how to construct an `EngineInstance`:
+
+```
+var engineClient = new EngineClass.EngineClassClient(gRPCChannel);
+EngineClassInstance engine = engineClient.EngineClass(new EngineClass_EngineClassRequest()).ReturnValue;
+```
+
+Also, return values or response message fields from an RPC call can provide object instances. Here is an example of getting a `TypeUsageListInstance`:
+
+```
+EngineClass_UnserializeObjectsAndTypesResponse response = engineClient.UnserializeObjectsAndTypes(unserializeObjectsAndTypesRequest);
+TypeUsageListInstance usageList = response.typesUsed;
+```
+
+# Methods/Properties and Parameters
+The method names between the gRPC API and the TestStand API remain the same. For properties, the gRPC API prepends *Set_* and *Get_* to the property names.  For example, the property `PropertyObject.Name` is mapped as follows:
+
+```
+rpc Set_Name(PropertyObject_Set_NameRequest) returns (PropertyObject_Set_NameResponse);
+rpc Get_Name(PropertyObject_Get_NameRequest) returns (PropertyObject_Get_NameResponse);
+```
+
+All inputs and out parameters are mapped to request and response messages respectively. The messages have the name *\<ServiceName\>_\<MethodName\>[Request|Response]*. Here is how the request and response for `PropertyObject.GetValNumber` are defined:
+
+```
+message PropertyObject_GetValNumberRequest {
+	PropertyObjectInstance instance = 1;
+	string lookupString = 2;
+	PropertyOptions options = 3;
+}
+
+message PropertyObject_GetValNumberResponse {
+	double returnValue = 1;
+}
+```
+
+Each request requires an object instance followed by the input parameter values, if any.
+
+## Arrays
+
+Array parameters are defined as `repeated` fields in request and response messages. For example, this is how the input parameters of `Engine.SearchFiles`, some of which are arrays, are mapped from the TestStand API to the gRPC API:
+
+```
+Class Engine {
+    SearchResults SearchFiles(String searchString, Long searchOptions, Long filterOptions,
+                              Long elementsToSearch, StringArray limitToAdapters,
+                              StringArray limitToNamedProps, StringArray imitToPropsOfNamedTypes,
+                              ObjectArray openFilesToSearch, String Array directoriesAndFilePaths)
+}
+
+         ||
+        \||/
+         \/
+
+service EngineClass {
+	rpc SearchFiles(EngineClass_SearchFilesRequest) returns (EngineClass_SearchFilesResponse);
+}
+
+message EngineClass_SearchFilesRequest {
+	EngineClassInstance instance = 1;
+	string searchString = 2;
+	SearchOptions SearchOptions = 3;
+	SearchFilterOptions filterOptions = 4;
+	SearchElements elementsToSearch = 5;
+	repeated string limitToAdapters = 6;
+	repeated string limitToNamedProps = 7;
+	repeated string limitToPropsOfNamedTypes = 8;
+	repeated PropertyObjectFileInstance openFilesToSearch = 9;
+	repeated string directoriesAndFilePaths = 10;
+}
+```
+
+# Enums
+Some of the long parameters defined in the TestStand API take enum values like the *options* parameter in many of the methods. For those long parameters, the gRPC API maps them to the enum data types they expect. For example, the TestStand API defines the *options* parameter as a `long` in `PropertyObject.GetValNumber` (see [API Objects](#api-objects)). The gRPC API maps `long` to `PropertyOptions` to simplify specifying the different options.
+
+Other examples include using the following:
+- `PropertyFlags` for the *Flags* parameter of `PropertyObject.SetFlags`
+- `LoadPrototypeOptions` for the *options* parameter of `Module.LoadPrototype`
+- `OpenFileDialogOptions` for the *openFileDialogFlags* of `Engine.DisplayFileDialog`
+
+# Constants
+
+TestStand API constants like AdapterKeyNames, DefaultModelCallbacks, StepProperties and StepTypes are mapped to gRPC services. The service has an RPC get method for each constant that returns the value for that constant. For example, AdapterKeyNames is defined and used as follows:
+
+```
+service AdapterKeyNames {
+	rpc Get_StdCVIAdapterKeyName(ConstantValueRequest) returns (stringResponse);
+	rpc Get_FlexCAdapterKeyName(ConstantValueRequest) returns (stringResponse);
+	rpc Get_LVAdapterKeyName(ConstantValueRequest) returns (stringResponse);
+	rpc Get_GAdapterKeyName(ConstantValueRequest) returns (stringResponse);
+	rpc Get_SequenceAdapterKeyName(ConstantValueRequest) returns (stringResponse);
+	rpc Get_AutomationAdapterKeyName(ConstantValueRequest) returns (stringResponse);
+	rpc Get_NoneAdapterKeyName(ConstantValueRequest) returns (stringResponse);
+	rpc Get_HTBasicAdapterKeyName(ConstantValueRequest) returns (stringResponse);
+	rpc Get_FlexLVAdapterKeyName(ConstantValueRequest) returns (stringResponse);
+	rpc Get_FlexCVIAdapterKeyName(ConstantValueRequest) returns (stringResponse);
+	rpc Get_DotNetAdapterKeyname(ConstantValueRequest) returns (stringResponse);
+	rpc Get_LabVIEWNXGAdapterKeyName(ConstantValueRequest) returns (stringResponse);
+	rpc Get_PythonAdapterKeyName(ConstantValueRequest) returns (stringResponse);
+}
+
+var adapterKeyNamesClient = new AdapterKeyNames.AdapterKeyNamesClient(gRPCChannel);
+string lvAdapterName = adapterKeyNamesClient.Get_LVAdapterKeyName(new ConstantValueRequest()).ReturnValue;
+```
+
+# Variant mapping to Protobuf Data Type
+Parameters that are optional, accept more than one type of object, or can return different value types are defined as `VARIANT` data types in the TestStand API.
+
+Since the gRPC API knows what data type each `VARIANT` parameter expects, it maps each parameter to a specific Protobuf data type. For example, `Engine.NewExecution` has three optional parameters: `sequenceArgsParam`, `editArgsParam`, and `interactiveArgsParam`.  All of them expect an instance of `PropertyObject`, so the gRPC API maps all three parameters to the `PropertyObjectInstance` Protobuf data type.
+
+```
+message IEngine_NewExecutionRequest {
+	IEngineInstance instance = 1;  
+	SequenceFileInstance sequenceFileParam = 2;  
+	string sequenceNameParam = 3;  
+	SequenceFileInstance processModelParam = 4; 
+	bool breakAtFirstStep = 5;
+	ExecutionTypeMask executionTypeMaskParam = 6;
+	PropertyObjectInstance sequenceArgsParam = 7;
+	PropertyObjectInstance editArgsParam = 8;
+	PropertyObjectInstance InteractiveArgsParam = 9;
+}
+```
+
+Protobuf does not have a variant data type so, for parameters that are truly dynamic, like the `newValue` parameter of `Engine.SetInternalOption`, the gRPC API uses the `oneof` keyword. As mentioned earlier, the gRPC API knows what data type each `VARIANT` data type expects so it is able to map dynamic data types to specific Protobuf types. This is how the gRPC API maps the `value` parameter of `Engine.SetInternalOption`:
+
+```
+message IEngine_SetInternalOptionRequest {
+	IEngineInstance instance = 1;
+	InternalOptions option = 2;
+	oneof value { bool boolean = 3; int32 integer = 4; double double = 5; string string = 6; ObjectInstance reference = 7; }
+}
+```
+
+Using `oneof` simplifies passing a boolean value like this:
+
+```
+var internalOptionRequest = new EngineClass_SetInternalOptionRequest
+	{
+		Instance = engineInstance,
+		Option = InternalOptions.InternalOptionWarnOnApicallThroughDispatchInterface,
+		Boolean = true
+	}
+```

@@ -34,7 +34,7 @@ Complete the following steps to prepare the server to accept requests from the c
     5. In **Preferences**, deselect **Prompt to Find Files**.
 2. (Optional) Configure a server-side TLS connection or mutual TLS connection. Refer to [Encrypting Connections to the Server](Docs/Encrypt_Connection.md) for more information. If you do not configure a secure connection, the client and server connection is not secure.
 3. In Visual Studio, open `Server/TestExecServer.sln`.  Open the .sln file. Do not select Open Folder.
-4. Build and run the solution. If you are using 32-bit TestStand, select the x86 Solution Platform before building.
+4. Build and run the solution. Type F5 or select the Start Debugging item from the DEBUG menu to run the solution. If you are using 32-bit TestStand, select the x86 Solution Platform before building.
 
 ---
 
@@ -44,7 +44,7 @@ The client is a C# GUI application that demonstrates using the TestStand gRPC AP
 
 Complete the following steps to connect the client to the server.
 1. (Optional) Configure a server-side TLS connection or mutual TLS connection. Refer to [Encrypting Connections to the Server](Docs/Encrypt_Connection.md) for more information. If you do not configure a secure connection, the client and server connection is not secure.
-2. Build and run the solution. Open the .sln file. Do not select Open Folder.
+2. Build and run the solution in a new instance of Visual Studio. Open the `Client/ExampleClient.sln` file. Do not select Open Folder. Type F5 or select the Start Debugging item from the DEBUG menu to run the solution.
 3. In the Example TestStand API Client Application window, enter the server IP address in **Server Address**, then click **Connect**. The Status field indicates whether a connection is established. If you have successfully established a secure connection, the IP address field displays a green shield icon. 
 
 ---
