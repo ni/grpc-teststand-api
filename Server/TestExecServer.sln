@@ -5,8 +5,6 @@ VisualStudioVersion = 17.2.32616.157
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestExecServer", "TestExecServer.csproj", "{A74A634B-152C-488B-9DC9-03116D0DC29C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExecutionTraceEvents", "..\ExecutionTraceEvents\ExecutionTraceEvents.csproj", "{1144643C-3D53-4A3D-AAA7-1554B4764990}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,14 +21,6 @@ Global
 		{A74A634B-152C-488B-9DC9-03116D0DC29C}.Release|Any CPU.Build.0 = Release|Any CPU
 		{A74A634B-152C-488B-9DC9-03116D0DC29C}.Release|x86.ActiveCfg = Release|x86
 		{A74A634B-152C-488B-9DC9-03116D0DC29C}.Release|x86.Build.0 = Release|x86
-		{1144643C-3D53-4A3D-AAA7-1554B4764990}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1144643C-3D53-4A3D-AAA7-1554B4764990}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{1144643C-3D53-4A3D-AAA7-1554B4764990}.Debug|x86.ActiveCfg = Debug|x86
-		{1144643C-3D53-4A3D-AAA7-1554B4764990}.Debug|x86.Build.0 = Debug|x86
-		{1144643C-3D53-4A3D-AAA7-1554B4764990}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1144643C-3D53-4A3D-AAA7-1554B4764990}.Release|Any CPU.Build.0 = Release|Any CPU
-		{1144643C-3D53-4A3D-AAA7-1554B4764990}.Release|x86.ActiveCfg = Release|x86
-		{1144643C-3D53-4A3D-AAA7-1554B4764990}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

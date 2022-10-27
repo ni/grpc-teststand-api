@@ -16,8 +16,10 @@ using static System.FormattableString;
 
 namespace TestStandGrpcApi
 {
-    public class Server
+    public class GrpcServer
     {
+        private const string AllowedOrigins = "AllowedOrigins";
+
         private static IHost _host;
         private static ServerOptions _serverOptions;
         private static X509Certificate2 _serverCertificate;
@@ -112,9 +114,9 @@ namespace TestStandGrpcApi
                         }
                     });
 
-                    // 5002 is just for testing
-                    const int TestingPort = 5002;
-                    options.Listen(IPAddress.Any, TestingPort, listenOptions =>
+                    // Make the testing port be the next port
+                    int testingPort = _serverOptions.Port + 1;
+                    options.Listen(IPAddress.Any, testingPort, listenOptions =>
                     {
                         listenOptions.Protocols = HttpProtocols.Http2;
                         if (UsesHttps)
@@ -125,13 +127,13 @@ namespace TestStandGrpcApi
                             }
                             catch (Exception e)
                             {
-                                ErrorMessage += Invariant($"Error starting port '{TestingPort}'.\nError: {e.Message}\n\n");
+                                ErrorMessage += Invariant($"Error starting port '{testingPort}'.\nError: {e.Message}\n\n");
                             }
                         }
                     });
                 });
 
-                webBuilder.UseStartup<Server>();
+                webBuilder.UseStartup<GrpcServer>();
             });
 
         private static void ConfigureSecureConnectionIfRequired(HttpsConnectionAdapterOptions configureOptions)
@@ -229,7 +231,7 @@ namespace TestStandGrpcApi
             return null;
         }
 
-        public Server(IConfiguration configuration)
+        public GrpcServer(IConfiguration configuration)
         {
             Configuration = configuration;
         }
@@ -257,6 +259,27 @@ namespace TestStandGrpcApi
                 options.MaxReceiveMessageSize = null;
                 options.MaxSendMessageSize = null;
             });
+
+            // Browser security prevents a web page from making requests to a different domain (origin) than the one
+            // that served the web page. This restriction is called the same-origin policy. Browser apps that want to
+            // use this gRPC service might be running in a different domain. To allow those browser apps to use this
+            // gRPC service, we need to enable Cross-Origin Resource Sharing (CORS) which is done in the Configure method
+            // below. We also need to add a CORS policy (as done below) to allow specific origins (domains) to use this
+            // service. For more information as to how to configure all the different options, see
+            // https://learn.microsoft.com/en-us/aspnet/core/security/cors?view=aspnetcore-6.0
+            if (_serverOptions.Cors.IsEnabled)
+            {
+                services.AddCors(options =>
+                {
+                    options.AddPolicy(name: AllowedOrigins,
+                        policy =>
+                        {
+                            policy.WithOrigins(_serverOptions.Cors.Origins)
+                                .AllowAnyHeader()
+                                .AllowAnyMethod();
+                        });
+                });
+            }
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -268,19 +291,30 @@ namespace TestStandGrpcApi
 
             app.UseRouting();
 
+            // To enable client certificate authentication, the following two calls are needed.
+            // https://learn.microsoft.com/en-us/aspnet/core/grpc/authn-and-authz?view=aspnetcore-6.0
             app.UseAuthentication();
             app.UseAuthorization();
 
-            // Add gRPC-Web middleware after routing and before endpoints.  https://devblogs.microsoft.com/aspnet/grpc-web-experiment/
-            // app.UseGrpcWeb();  need to test this. also in Server.RegisterServices, it needs endPoints.MapGrpcService<T>().EnableGrpcWeb() for each service, also need package Grpc.AspNetCore.Web 
+            // To allow browser apps to use this gRPC service, we need to enable the gRPC-Web protocol.
+            // gRPC-Web middleware needs to be enabled after routing and before endpoints.
+            // https://docs.microsoft.com/en-us/aspnet/core/grpc/grpcweb?view=aspnetcore-6.0#configure-grpc-web-in-aspnet-core
+            // Configure so that all services support gRPC-Web by default. This will remove the
+            // requirement to call EnableGrpcWeb in all services. 
+            app.UseGrpcWeb(new GrpcWebOptions { DefaultEnabled = true });
+
+            // Enabled CORS if option is enabled. Here we only enable the CORS middleware. In the method
+            // ConfigureServices above, we add a CORS policy to enable browser apps to connect.
+            // https://learn.microsoft.com/en-us/aspnet/core/grpc/grpcweb?view=aspnetcore-6.0#grpc-web-and-cors
+            if (_serverOptions.Cors.IsEnabled)
+            {
+                app.UseCors(AllowedOrigins);
+            }
 
             app.UseEndpoints(endpoints =>
             {
                 // Call RegisterServices for each Grpc api server side assembly you have generated and want to make available
                 ServicesRegistration.RegisterServices(endpoints);
-
-                // BTS: Register the ExecutionTraceEvents service to make available
-                BTS.ExecutionTraceEvents.Server.RegisterServices(endpoints);
             });
         }
     }

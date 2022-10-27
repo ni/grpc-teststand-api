@@ -16,6 +16,7 @@
 using System;
 using System.Windows.Forms;
 using NationalInstruments.TestStand.Grpc.Net.Server.OO;
+using System.Text.RegularExpressions;
 
 // TestStand Core API 
 using NationalInstruments.TestStand.Interop.API;
@@ -26,8 +27,6 @@ using NationalInstruments.TestStand.Interop.UI.Support;
 
 // .net specific functions for use with TestStand APIs (TSUtil)
 using NationalInstruments.TestStand.Utility;
-
-using static System.FormattableString;
 
 namespace TestExecServer
 {
@@ -75,14 +74,6 @@ namespace TestExecServer
 			InitializeComponent();
 
 			Text = WindowTitle;
-			if (string.IsNullOrEmpty(TestStandGrpcApi.Server.ErrorMessage))
-			{
-				Text += TestStandGrpcApi.Server.UsesHttps ? " [Secure]" : " [Not secure]";
-			}
-			else
-            {
-				Text += " [No gRPC Service]";
-            }
 
 			// NOTE: Add any constructor code after InitializeComponent call
 			this.Icon = Properties.Resources.App;
@@ -100,7 +91,7 @@ namespace TestExecServer
 					components.Dispose();
 				}
 
-				TestStandGrpcApi.Server.Shutdown();
+				TestStandGrpcApi.GrpcServer.Shutdown();
 			}
 			base.Dispose( disposing );
 		}
@@ -176,7 +167,7 @@ namespace TestExecServer
 			this.axFilesComboBox.Location = new System.Drawing.Point(112, 8);
 			this.axFilesComboBox.Name = "axFilesComboBox";
 			this.axFilesComboBox.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("axFilesComboBox.OcxState")));
-			this.axFilesComboBox.Size = new System.Drawing.Size(505, 22);
+			this.axFilesComboBox.Size = new System.Drawing.Size(564, 22);
 			this.axFilesComboBox.TabIndex = 1;
 			// 
 			// axSequencesComboBox
@@ -184,12 +175,12 @@ namespace TestExecServer
 			this.axSequencesComboBox.Location = new System.Drawing.Point(112, 37);
 			this.axSequencesComboBox.Name = "axSequencesComboBox";
 			this.axSequencesComboBox.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("axSequencesComboBox.OcxState")));
-			this.axSequencesComboBox.Size = new System.Drawing.Size(505, 22);
+			this.axSequencesComboBox.Size = new System.Drawing.Size(564, 22);
 			this.axSequencesComboBox.TabIndex = 4;
 			// 
 			// axOpenFileButton
 			// 
-			this.axOpenFileButton.Location = new System.Drawing.Point(622, 5);
+			this.axOpenFileButton.Location = new System.Drawing.Point(709, 5);
 			this.axOpenFileButton.Name = "axOpenFileButton";
 			this.axOpenFileButton.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("axOpenFileButton.OcxState")));
 			this.axOpenFileButton.Size = new System.Drawing.Size(167, 26);
@@ -197,7 +188,7 @@ namespace TestExecServer
 			// 
 			// axCloseFileButton
 			// 
-			this.axCloseFileButton.Location = new System.Drawing.Point(622, 35);
+			this.axCloseFileButton.Location = new System.Drawing.Point(709, 35);
 			this.axCloseFileButton.Name = "axCloseFileButton";
 			this.axCloseFileButton.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("axCloseFileButton.OcxState")));
 			this.axCloseFileButton.Size = new System.Drawing.Size(167, 26);
@@ -229,23 +220,23 @@ namespace TestExecServer
 			this.axEntryPoint1Button.Location = new System.Drawing.Point(112, 63);
 			this.axEntryPoint1Button.Name = "axEntryPoint1Button";
 			this.axEntryPoint1Button.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("axEntryPoint1Button.OcxState")));
-			this.axEntryPoint1Button.Size = new System.Drawing.Size(167, 26);
+			this.axEntryPoint1Button.Size = new System.Drawing.Size(187, 26);
 			this.axEntryPoint1Button.TabIndex = 6;
 			// 
 			// axEntryPoint2Button
 			// 
-			this.axEntryPoint2Button.Location = new System.Drawing.Point(281, 63);
+			this.axEntryPoint2Button.Location = new System.Drawing.Point(300, 63);
 			this.axEntryPoint2Button.Name = "axEntryPoint2Button";
 			this.axEntryPoint2Button.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("axEntryPoint2Button.OcxState")));
-			this.axEntryPoint2Button.Size = new System.Drawing.Size(167, 26);
+			this.axEntryPoint2Button.Size = new System.Drawing.Size(187, 26);
 			this.axEntryPoint2Button.TabIndex = 7;
 			// 
 			// axRunSelectedButton
 			// 
-			this.axRunSelectedButton.Location = new System.Drawing.Point(450, 63);
+			this.axRunSelectedButton.Location = new System.Drawing.Point(488, 63);
 			this.axRunSelectedButton.Name = "axRunSelectedButton";
 			this.axRunSelectedButton.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("axRunSelectedButton.OcxState")));
-			this.axRunSelectedButton.Size = new System.Drawing.Size(167, 26);
+			this.axRunSelectedButton.Size = new System.Drawing.Size(187, 26);
 			this.axRunSelectedButton.TabIndex = 8;
 			// 
 			// axExecutionsComboBox
@@ -253,12 +244,12 @@ namespace TestExecServer
 			this.axExecutionsComboBox.Location = new System.Drawing.Point(112, 95);
 			this.axExecutionsComboBox.Name = "axExecutionsComboBox";
 			this.axExecutionsComboBox.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("axExecutionsComboBox.OcxState")));
-			this.axExecutionsComboBox.Size = new System.Drawing.Size(505, 22);
+			this.axExecutionsComboBox.Size = new System.Drawing.Size(564, 22);
 			this.axExecutionsComboBox.TabIndex = 10;
 			// 
 			// axCloseExecutionButton
 			// 
-			this.axCloseExecutionButton.Location = new System.Drawing.Point(622, 92);
+			this.axCloseExecutionButton.Location = new System.Drawing.Point(709, 92);
 			this.axCloseExecutionButton.Name = "axCloseExecutionButton";
 			this.axCloseExecutionButton.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("axCloseExecutionButton.OcxState")));
 			this.axCloseExecutionButton.Size = new System.Drawing.Size(167, 26);
@@ -293,7 +284,7 @@ namespace TestExecServer
 			this.axSequenceView.Location = new System.Drawing.Point(5, 125);
 			this.axSequenceView.Name = "axSequenceView";
 			this.axSequenceView.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("axSequenceView.OcxState")));
-			this.axSequenceView.Size = new System.Drawing.Size(784, 200);
+			this.axSequenceView.Size = new System.Drawing.Size(871, 200);
 			this.axSequenceView.TabIndex = 12;
 			// 
 			// axReportView
@@ -301,7 +292,7 @@ namespace TestExecServer
 			this.axReportView.Location = new System.Drawing.Point(5, 361);
 			this.axReportView.Name = "axReportView";
 			this.axReportView.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("axReportView.OcxState")));
-			this.axReportView.Size = new System.Drawing.Size(784, 205);
+			this.axReportView.Size = new System.Drawing.Size(871, 205);
 			this.axReportView.TabIndex = 19;
 			// 
 			// axBreakResumeButton
@@ -322,7 +313,7 @@ namespace TestExecServer
 			// 
 			// axLoginLogoutButton
 			// 
-			this.axLoginLogoutButton.Location = new System.Drawing.Point(451, 571);
+			this.axLoginLogoutButton.Location = new System.Drawing.Point(539, 571);
 			this.axLoginLogoutButton.Name = "axLoginLogoutButton";
 			this.axLoginLogoutButton.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("axLoginLogoutButton.OcxState")));
 			this.axLoginLogoutButton.Size = new System.Drawing.Size(167, 26);
@@ -330,7 +321,7 @@ namespace TestExecServer
 			// 
 			// axExitButton
 			// 
-			this.axExitButton.Location = new System.Drawing.Point(622, 571);
+			this.axExitButton.Location = new System.Drawing.Point(710, 571);
 			this.axExitButton.Name = "axExitButton";
 			this.axExitButton.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("axExitButton.OcxState")));
 			this.axExitButton.Size = new System.Drawing.Size(167, 26);
@@ -347,13 +338,13 @@ namespace TestExecServer
 			// notifyIcon
 			// 
 			this.notifyIcon.BalloonTipText = "TestExecServer";
-			this.notifyIcon.Icon = this.Icon;
+			this.notifyIcon.Icon = ((System.Drawing.Icon)(resources.GetObject("notifyIcon.Icon")));
 			this.notifyIcon.Text = "TestExecServer";
 			this.notifyIcon.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.NotifyIcon_MouseDoubleClick);
 			// 
 			// MainForm
 			// 
-			this.ClientSize = new System.Drawing.Size(794, 604);
+			this.ClientSize = new System.Drawing.Size(882, 604);
 			this.Controls.Add(this.axTerminateAllButton);
 			this.Controls.Add(this.axExitButton);
 			this.Controls.Add(this.axSequenceView);
@@ -415,12 +406,43 @@ namespace TestExecServer
 		{
 			Application.SetHighDpiMode(HighDpiMode.DpiUnaware);
 
-			TestStandGrpcApi.Server.Start(args);
-			ApplicationWrapper.Run(new MainForm());
+			var form = new MainForm();
+
+			// specify an action to perform if waiting on a client event reply in the GUI thread. This is optional. It will improve UI responsiveness
+			// of the server app when clients go unresponsive and the title bar message will inform a user who is interacting with the server app
+			// when the progress of the app is necessarily impeeded due to waiting for client event responses or for the corresponding timeouts to expire.
+			ConnectionFactory.WaitLoopDelegate = (WaitLoopStates waitLoopState, double elapsedWaitTime) =>
+			{
+				if (!form.InvokeRequired)  // if we are waiting for a grpc event reply in the gui thread...
+				{					
+					if (waitLoopState == WaitLoopStates.Ended)
+					{
+						form.Text = Regex.Replace(form.Text, @" \[Waiting For Client ?\d+[\.?\d+]*\]", String.Empty); // clear wait message
+						// form.Enabled = true;  // see comment on form.Enabled = false
+					}
+					else
+					{
+						// To avoid event-loop reentrancy, disable the UI before calling DoEvents, just like a Modal dialog disables a
+						// parent window  before running its nested event loop
+						// form.Enabled = false; // actually not doing this because disabling the form prevents dragging and makes the UI look hung even if it isn't. A more targeted disabling would be better.
+
+						if (waitLoopState == WaitLoopStates.Starting)
+							form.Text += $" [Waiting For Client {elapsedWaitTime:F1}]";
+						else
+							form.Text = Regex.Replace(form.Text, @" \[Waiting For Client ?\d+[\.?\d+]*\]", $" [Waiting For Client {elapsedWaitTime:F1}]");
+
+						Application.DoEvents(); // process events so the gui thread isn't hung while waiting
+					}
+				}
+			};
+
+			TestStandGrpcApi.GrpcServer.Start(args);  // start grpc server
+
+			ApplicationWrapper.Run(form);
 		}
 
 		private void MainForm_Load(object sender, System.EventArgs e)
-		{
+		{			
 			try
 			{
 				// If this UI is running in a CLR other than the one TestStand uses,
@@ -459,13 +481,15 @@ namespace TestExecServer
 				// show all step groups at once in the sequence view
 				axExecutionViewMgr.StepGroupMode = StepGroupModes.StepGroupMode_AllGroups;
 
-                // Process UI message events to handle trace and end execution messages.
-                axApplicationMgr.AfterUIMessageEvent += OnApplicationMgrAfterUIMessageEvent;
-
 				// this is a server, no sense in prompting to log in a local user
 				axApplicationMgr.GetEngine().StationOptions.LoginOnStart = false;
 				axApplicationMgr.GetEngine().StationOptions.EnableUserPrivilegeChecking = false;
 
+				// make the managers available as named grpc globals
+				ConnectionFactory.ServerGlobalScope.ToInstanceId(axApplicationMgr.GetOcx(), true, "ApplicationMgr");
+				ConnectionFactory.ServerGlobalScope.ToInstanceId(axSequenceFileViewMgr.GetOcx(), true, "SequenceFileViewMgr");
+				ConnectionFactory.ServerGlobalScope.ToInstanceId(axExecutionViewMgr.GetOcx(), true, "ExecutionFileViewMgr");
+				
 				axApplicationMgr.Start();   // start up the TestStand User Interface Components.
 			}
 			catch (Exception theException)
@@ -474,50 +498,22 @@ namespace TestExecServer
 				Application.Exit();
 			}
 
-			if (!string.IsNullOrEmpty(TestStandGrpcApi.Server.ErrorMessage))
-            {
+			if (string.IsNullOrEmpty(TestStandGrpcApi.GrpcServer.ErrorMessage))
+			{
+				Text += TestStandGrpcApi.GrpcServer.UsesHttps ? " [Secure]" : " [Not secure]";
+			}
+			else
+			{
+				Text += " [No gRPC Service]";
+
 				// Try to show the error dialog after the MainForm becomes visible. It is not always guarantee that 
 				// MainForm will show before the error dialog when using BeginInvoke, however, in most cases it does.
 				BeginInvoke(() =>
 				{
-					string message = "Failed to initialize gRPC service with following error(s):\n\n" + TestStandGrpcApi.Server.ErrorMessage;
+					string message = "Failed to initialize gRPC service with following error(s):\n\n" + TestStandGrpcApi.GrpcServer.ErrorMessage;
 					axApplicationMgr.RaiseError((int)TSError.TS_Err_OperationFailed, message);
 				});
             }
-		}
-
-        private void OnApplicationMgrAfterUIMessageEvent(object sender, NationalInstruments.TestStand.Interop.UI.Ax._ApplicationMgrEvents_AfterUIMessageEventEvent e)
-        {
-			// This example shows how to get some information about a running execution into a string.
-			// It also allows the trace event service to process the trace message string.
-			if (e.uiMsg.Event == UIMessageCodes.UIMsg_Trace)
-			{
-				Execution execution = e.uiMsg.Execution;
-				SequenceContext context = e.uiMsg.Thread.GetSequenceContext(0, out _);
-				int stepIndex = context.PreviousStepIndex;
-				if (stepIndex >= 0)
-				{
-					string stepName = context.PreviousStep.Name;
-					string status = context.PreviousStep.ResultStatus;
-					string message = Invariant($"Execution Id: {execution.Id}, Step - Name: {stepName}, Index: {stepIndex}, Status: {status}");
-
-					if (status == StepProperties.ResultStatus_Error)
-                    {
-						PropertyObject errorObject = context.PreviousStep.AsPropertyObject().GetPropertyObject("Result.Error", PropertyOptions.PropOption_NoOptions);
-						double errorCode = errorObject.GetValNumber("Code", PropertyOptions.PropOption_NoOptions);
-						string errorMessage = errorObject.GetValString("Msg", PropertyOptions.PropOption_NoOptions);
-
-						message += Invariant($"\n   Code = {errorCode}, Message = {errorMessage}");
-                    }
-
-					BTS.ExecutionTraceEvents.ExecutionTraceEventsService.AddTraceMessage(execution.Id, message);
-				}
-			}
-			else if (e.uiMsg.Event == UIMessageCodes.UIMsg_EndExecution)
-            {
-				// Inform clients that execution has ended
-				BTS.ExecutionTraceEvents.ExecutionTraceEventsService.ExecutionEnded(e.uiMsg.Execution.Id);
-			}
 		}
 
 		// handle request to close form (via Windows close box, for example)
@@ -535,8 +531,6 @@ namespace TestExecServer
 
 			if (!e.Cancel)
             {
-				BTS.ExecutionTraceEvents.ExecutionTraceEventsService.ServerShuttingDown();
-
 				// Since server is shutting down, discard all connections to make sure
 				// all objects in those connections are also released.
 				ConnectionFactory.DiscardAllConnections();
@@ -616,6 +610,5 @@ namespace TestExecServer
 			this.WindowState = FormWindowState.Normal;
 			notifyIcon.Visible = false;
 		}
-
 	}
 }

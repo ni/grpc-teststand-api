@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="ExecutionTraceEvents.proto" />
     <None Remove="Resources\Add.ico" />
     <None Remove="Resources\Delete.ico" />
     <None Remove="Resources\ExecutionAborted.ico" />
@@ -31,10 +30,6 @@
     <PackageReference Include="Grpc.Net.Client" Version="2.40.0" />
 	<PackageReference Include="Grpc.AspNetCore" Version="2.39.0" />
 	<PackageReference Include="NationalInstruments.TestStand.gRPC.Client" Version="0.5.0-*" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Protobuf Include="ExecutionTraceEvents.proto" GrpcServices="Client" />
   </ItemGroup>
 
   <ItemGroup>

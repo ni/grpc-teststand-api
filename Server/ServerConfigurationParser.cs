@@ -43,10 +43,12 @@ namespace TestStandGrpcApi
 
     public class ServerOptions
     {
-        // 5001 is the port number used by many microsoft examples.
-        public int Port { get; set; } = 5001;
+        // 5020 is used to avoid conflicting with NI Services
+        public int Port { get; set; } = 5020;
 
         public Security Security { get; set; } = new Security();
+
+        public Cors Cors { get; set; } = new Cors();
 
         public string ServerCertificatePath { get; set; } = null;
 
@@ -104,5 +106,18 @@ namespace TestStandGrpcApi
 
         [JsonPropertyName("server_cert_pfx_password")]
         public string ServerCertificatePFXFilePassword { get; set; } = string.Empty;
+    }
+
+    // Cors stands for "Cross-Origin Resource Sharing"
+    public class Cors
+    {
+        public bool Enable { get; set; }
+
+        public string[] Origins { get; set; }
+
+        public bool IsEnabled
+        {
+            get => Enable && (Origins?.Length > 0);
+        }
     }
 }

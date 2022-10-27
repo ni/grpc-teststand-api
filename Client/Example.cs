@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Text;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -15,6 +17,7 @@ using NationalInstruments.TestStand.Grpc.Net.Client.OO;  // instance lifetime AP
 using NationalInstruments.TestStand.API.Grpc; // TestStand Engine API
 using NationalInstruments.TestStand.UI.Grpc;
 using static System.FormattableString;
+using static ExampleClient.Win32Interop;
 
 namespace ExampleClient
 {
@@ -51,7 +54,16 @@ namespace ExampleClient
 		const string SecureConnection = "SecureConnection";
 		const string NotSecureConnection = "NotSecureConnection";
 
-		const long IdForStreamForTracingAllExecutions = -1;
+        const int ColorBoxWidth = 3;
+        // For a step result, we need to add a color box before the status. To do this,
+        // we need to add the space to the result to draw the color box. ColorBoxSpace
+        // defines the space to insert. We nee to add one character to ColorBoxWidth to
+        // allow one space between the box and the actual result text.
+        readonly string ColorBoxSpace = string.Format("{0," + (ColorBoxWidth + 1) + "}", "");
+
+        const int StatusLength = 7;
+		const int IndentOffsetForOneLevel = 4;
+        readonly string IndentSpace = string.Format("{0," + IndentOffsetForOneLevel + "}", "");
 
 		private readonly object _dataLock = new();
 		private int _busyCount = 0;
@@ -73,18 +85,13 @@ namespace ExampleClient
 		private StationOptions.StationOptionsClient _stationOptionsClient;
 		private ApplicationMgr.ApplicationMgrClient _applicationMgrClient;
 		private Executions.ExecutionsClient _executionsClient;
+		private UIMessage.UIMessageClient _uiMessageClient = null;
+		private StepProperties.StepPropertiesClient _stepPropertiesClient = null;
 
 		private readonly Dictionary<string, Stream> _imageList = new();
 
 		private bool _isConnected = false;
 		private string _nonSequentialProcessModelName = null;
-
-		// BTS client for getting execution trace messages
-		private BTS.ExecutionTraceEvents.ExecutionTraceEvents.ExecutionTraceEventsClient _btsTraceEventsClient;
-		private IDisposable _listenForServerShutdownStream;
-
-		// This map is used to cancel all the calls that are streaming trace messages.
-		private readonly Dictionary<long, IDisposable> _traceMessagesStreams = new();
 
 		// remember some objects we create on the server for later use
 		private EngineInstance _engine = null;
@@ -102,6 +109,8 @@ namespace ExampleClient
 			InitializeComponent();
 
 			InitializeImageList();
+			SetMonospacedFontInTraceAndLogControls();
+			UpdateTraceMessagesControls();
 
 			_clientOptions = options;
 
@@ -135,7 +144,32 @@ namespace ExampleClient
 			_imageList[NotSecureConnection] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.NotSecuredConnection.png");
 		}
 
-		private void SetConnectionStatus(bool isConnected)
+		private void SetMonospacedFontInTraceAndLogControls()
+		{
+            // These fonts are documented here: https://docs.microsoft.com/en-us/typography/font-list/
+            const string PreferredMonospacedFontName = "Lucida Sans Typewriter";
+			const string BackupMonospacedFontName = "Courier New";
+
+            // Since "Lucida Sans Typewriter" is not installed by default in Windows,
+            // we need to check if it is installed before trying to use it. If not, we
+            // need to use the backup font "Courier New" which is installed by default.
+            string fontToUse = BackupMonospacedFontName;
+            var installedFontCollection = new InstalledFontCollection();
+
+            foreach (FontFamily family in installedFontCollection.Families)
+			{
+				if (family.Name == PreferredMonospacedFontName)
+				{
+					fontToUse = PreferredMonospacedFontName;
+					break;
+				}
+			}
+
+			_logTextBox.Font = new Font(fontToUse, Font.Size);
+			_executionTraceMessagesTextBox.Font = new Font(fontToUse, Font.Size);
+        }
+
+        private void SetConnectionStatus(bool isConnected)
 		{
 			// Control values need to be set in the UI thread. Also, running in the
 			// UI thread, removes the need to add a lock when updating _isConnected.
@@ -174,7 +208,18 @@ namespace ExampleClient
 					connectionStatusString = ConnectionStatusDisconnected;
 					connectionStatusImageName = ConnectionStatusDisconnected;
 					connectionType = NotConnected;
+
+					// Reset the execution status
+					SetExecutionStatus(NotExecutedSequenceFile);
+
+					_addGlobalButton.Enabled = false;
+					_deleteGlobalButton.Enabled = false;
+					_commitGlobalsToDiskButton.Enabled = false;
+					_stationGlobalsListView.Enabled = false;
+					_valueTextBox.Enabled = false;
 				}
+
+				_enableTracingCheckBox.Enabled = _isConnected;
 
 				_connectionTypePictureBox.Image = new Bitmap(_imageList[connectionType]);
 				_connectionStatusPictureBox.Image = new Bitmap(_imageList[connectionStatusImageName]);
@@ -183,30 +228,17 @@ namespace ExampleClient
 		}
 
 		// pass false to onlyIfNeeded if the server address might have changed
-		private async Task Setup(bool onlyIfNeeded)
+		private void Setup(bool onlyIfNeeded)
 		{
 			if (!onlyIfNeeded || _gRPCChannel == null)
 			{
-				// if a channel already exists, dispose it
-				if (_gRPCChannel != null)
-				{
-					ReleaseEngineReference();
-
-					await _gRPCChannel.ShutdownAsync();
-					_gRPCChannel = null;
-				}
+				Cleanup();
 
 				_gRPCChannel = _channelHelper.OpenChannel(_serverAddressTextBox.Text, _clientOptions, out _connectionIsSecured, out string connectionErrors);
 				if (_gRPCChannel != null)
 				{
 					// create the service clients for the interfaces we want to use 
 					SetupServiceClients();
-
-					// Start worker thread to listen for server shutdown
-					_ = Task.Run(async () => await StartListeningForServerShutdownAsync());
-
-					// start clean in case this is a reconnect from the same machine as prior run.  might not be necessary if we distinguish connection by process id in the future as noted in USER STORY 1631323
-					_instanceLifetimeClient.Clear(new InstanceLifetime_ClearRequest { DiscardConnection = true });
 
 					// the engine is used a lot, make sure we have a reference handy
 					GetEngineReference();
@@ -215,6 +247,10 @@ namespace ExampleClient
 					RefreshStationGlobals();
 
 					InitializeProcessModelInformation();
+
+					HandleUIMessages();
+
+					InitializeEnableTracingOption();
 
 					LogLine("Connection Succeeded.");
 					SetConnectionStatus(true);
@@ -225,6 +261,145 @@ namespace ExampleClient
 					SetConnectionStatus(false);
 				}
 			}
+		}
+
+		private void Cleanup()
+		{	
+			// if a channel already exists, dispose it
+			if (_gRPCChannel != null)
+			{
+				if (_isConnected)
+				{
+					// let the server know this connection and all its instance ids and event streams are no longer needed
+					_instanceLifetimeClient?.Clear(new InstanceLifetime_ClearRequest { DiscardConnection = true });
+				}
+
+				Task.Run(async () => await _gRPCChannel.ShutdownAsync()).Wait(); // call async task in thread pool thread so that Wait() can't prevent the continuation from completing 
+				_gRPCChannel = null;
+			}
+
+			_engine = null; // all instance ids are now invalid
+
+		}
+
+		private static string _errorResultStatusConstant;
+
+		private void HandleUIMessages()
+		{			
+			if (String.IsNullOrEmpty(_errorResultStatusConstant))
+				 _errorResultStatusConstant = _stepPropertiesClient.Get_ResultStatus_Error(new ConstantValueRequest()).ReturnValue;
+
+			// get stream of UIMessage events
+			var uiMessageEventStream = _engineClient.GetEvents_UIMessageEvent(new Engine_GetEvents_UIMessageEventRequest
+			{
+				Instance = _engine,
+				DiscardMultipleEventsWithinPeriod = 0.0,
+				ReplyTimeout = 20.0
+			}).ResponseStream;
+
+			// read the message stream from a separate thread. Otherwise the asynchronous message reading loop would block whenever the thread in which it is established
+			// blocks in a synchronous call, including synchronous gRPC calls. Because some TestStand gRPC API calls can generate events that require replies before completing
+			// the call, event loops should not be in a thread that might make non-async calls to the TestStand API, or any other calls that might block for an unbounded period.
+			Task.Run(async () =>
+			{
+				const int IndentOffset = 4;
+				const int StatusLength = 7;
+
+				try
+				{
+					await foreach (var uiMessageEvent in uiMessageEventStream.ReadAllAsync())
+					{
+
+						LogLine($"received msg id {uiMessageEvent.Msg.Id}  eventId: {uiMessageEvent.EventId}");
+						var uiMessageCode = _uiMessageClient.Get_Event(new UIMessage_Get_EventRequest { Instance = uiMessageEvent.Msg }).ReturnValue;
+
+						var now = DateTime.Now;
+						switch (uiMessageCode)
+						{
+							case UIMessageCodes.UimsgEndExecution:
+								{
+									var executionInstance = (await _uiMessageClient.Get_ExecutionAsync(new UIMessage_Get_ExecutionRequest { Instance = uiMessageEvent.Msg })).ReturnValue;
+									var executionId = (await _executionClient.Get_IdAsync(new Execution_Get_IdRequest { Instance = executionInstance })).ReturnValue;
+
+									// Log the end of an execution only if tracing is enabled.
+									if (_enableTracingCheckBox.Checked)
+									{
+										LogTraceMessage(Invariant($"Execution with id '{executionId}' is done running.") + Environment.NewLine);
+									}
+								}
+								break;
+							case UIMessageCodes.UimsgTrace:
+								{
+									string message = string.Empty;
+
+									var threadInstance = _uiMessageClient.Get_Thread(new UIMessage_Get_ThreadRequest { Instance = uiMessageEvent.Msg }).ReturnValue;
+									var sequenceContextInstance = _threadClient.GetSequenceContext(new Thread_GetSequenceContextRequest { Instance =  threadInstance, CallStackIndex = 0 }).ReturnValue;
+									var sequenceContextPropertyObjectInstance = new PropertyObjectInstance { Id = sequenceContextInstance.Id };
+									var previousStepIndex = _sequenceContextClient.Get_PreviousStepIndex(new SequenceContext_Get_PreviousStepIndexRequest { Instance = sequenceContextInstance }).ReturnValue;
+
+									if (previousStepIndex >= 0)
+									{
+										int numberOfSockets = (int)_propertyObjectClient.GetValNumber(new PropertyObject_GetValNumberRequest
+										{ 
+											Instance = sequenceContextPropertyObjectInstance,
+											 LookupString = "Runstate.TestSockets.Count",
+											 Options = PropertyOptions.PropOptionNoOptions
+										}).ReturnValue;
+
+										if (numberOfSockets > 1)
+										{
+											int socketNumber = (int)_propertyObjectClient.GetValNumber(new PropertyObject_GetValNumberRequest
+											{
+												Instance = sequenceContextPropertyObjectInstance,
+												LookupString = "Runstate.TestSockets.MyIndex",
+												Options = PropertyOptions.PropOptionNoOptions
+											}).ReturnValue;
+
+											// Make socket two characters long and left aligned it
+											message = Invariant($"Socket {socketNumber,-2}  ");
+										}
+
+										var previousStepInstance = (await _sequenceContextClient.Get_PreviousStepAsync(new SequenceContext_Get_PreviousStepRequest { Instance = sequenceContextInstance })).ReturnValue;
+										var stepName = (await _stepClient.Get_NameAsync(new Step_Get_NameRequest { Instance = previousStepInstance })).ReturnValue;
+										var status = (await _stepClient.Get_ResultStatusAsync(new Step_Get_ResultStatusRequest { Instance = previousStepInstance })).ReturnValue;
+
+										// Make status 7 characters long and left aligned it.
+										string statusFormatted = string.Format("{0,-" + StatusLength + "}", status);
+										message += Invariant($"{statusFormatted}  Step {stepName}");
+
+										if (status == _errorResultStatusConstant)
+										{
+											var stepObj = new PropertyObjectInstance { Id = previousStepInstance.Id }; // no need to call AsPropertyObject, just use the same Id and save a round trip
+											var errorCode = (await _propertyObjectClient.GetValNumberAsync(new PropertyObject_GetValNumberRequest { Instance = stepObj, LookupString = "Result.Error.Code", Options = PropertyOptions.PropOptionNoOptions })).ReturnValue;
+											var errorMessage = (await _propertyObjectClient.GetValStringAsync(new PropertyObject_GetValStringRequest { Instance = stepObj, LookupString = "Result.Error.Msg", Options = PropertyOptions.PropOptionNoOptions })).ReturnValue;
+
+											// Indent the Code label below the Step label
+											int codeStartingIndex = message.IndexOf("Step") + IndentOffset;
+											string indentedCodeLabel = string.Format("\n{0," + codeStartingIndex + "}Code", "");
+
+											message += Invariant($"{indentedCodeLabel} {errorCode}  Message {errorMessage}");
+										}
+
+										LogTraceMessage(message + Environment.NewLine);
+									}
+								}
+								break;
+						}
+
+						_ = _engineClient.ReplyToEvent_UIMessageEventAsync(new Engine_ReplyToEvent_UIMessageEventRequest { EventId = uiMessageEvent.EventId });
+
+						var elapsed = DateTime.Now - now;
+						LogLine("UIMessage event: " + uiMessageCode.ToString() + ", Time = " + elapsed.TotalSeconds.ToString());
+					}
+
+					LogLine("The UIMessage event stream exited without an error.");
+
+				}
+				catch (Exception ex)
+				{
+					LogLine("The UIMessage event stream exited with an error: " + ex.Message);
+				}
+			});
 		}
 
 		private void SetupServiceClients()
@@ -244,44 +419,11 @@ namespace ExampleClient
 			_stationOptionsClient = new StationOptions.StationOptionsClient(_gRPCChannel);
 			_applicationMgrClient = new ApplicationMgr.ApplicationMgrClient(_gRPCChannel);
 			_executionsClient = new Executions.ExecutionsClient(_gRPCChannel);
+			_uiMessageClient = new UIMessage.UIMessageClient(_gRPCChannel);
+			_stepPropertiesClient = new StepProperties.StepPropertiesClient(_gRPCChannel);
 
 			// client for the Instance Lifetime API, which lets you tell the server when your client doesn't need specific objects on the server any longer
 			_instanceLifetimeClient = new InstanceLifetime.InstanceLifetimeClient(_gRPCChannel);
-
-			// BTS client for getting execution trace messages
-			_btsTraceEventsClient = new BTS.ExecutionTraceEvents.ExecutionTraceEvents.ExecutionTraceEventsClient(_gRPCChannel);
-		}
-
-		private async Task StartListeningForServerShutdownAsync()
-		{
-			var request = new BTS.ExecutionTraceEvents.ExecutionTraceEvents_ListenForServerShutdownRequest();
-			var listenForServerShutdownStream = _btsTraceEventsClient.ListenForServerShutdown(request);
-
-			// Save it so client can close stream when client shutdowns
-			_listenForServerShutdownStream = listenForServerShutdownStream;
-
-			// Wait for a message from the server. If a message is received, it means the server is shutting down.
-			await listenForServerShutdownStream.ResponseStream.MoveNext();
-
-			SetConnectionStatus(false);
-
-			CloseAllStreams();
-			ReleaseEngineReference();
-		}
-
-		private void ReleaseEngineReference()
-		{
-			// tell the server we don't need the current engine reference anymore
-			if (_engine != null)
-			{
-				try
-				{
-					_instanceLifetimeClient.Release(new InstanceLifetime_ReleaseRequest { Value = new ObjectInstance { Id = _engine.Id } });
-				}
-				catch { }
-
-				_engine = null;
-			}
 		}
 
 		private void GetEngineReference()
@@ -289,8 +431,8 @@ namespace ExampleClient
 			if (_engine == null)
 			{
 				_engine = _engineClient.Engine(new Engine_EngineRequest()).ReturnValue;
-
-				// in case someone changes the default lifespan, always make the engine have unlimited lifespan
+				
+				// in case someone changes the default lifespan, always make the engine have an unlimited lifespan
 				_instanceLifetimeClient.SetLifespan(new InstanceLifetime_SetLifespanRequest
 				{
 					Value = new ObjectInstance() { Id = _engine.Id },
@@ -348,7 +490,26 @@ namespace ExampleClient
 			}
 		}
 
-        private StationOptionsInstance GetStationOptions()
+		private void InitializeEnableTracingOption()
+		{
+			StationOptionsInstance stationOptions = GetStationOptions();
+			_enableTracingCheckBox.Checked = _stationOptionsClient.Get_TracingEnabled(
+				new StationOptions_Get_TracingEnabledRequest
+				{
+					Instance = stationOptions
+				}).ReturnValue;
+
+			UpdateTraceMessagesControls();
+		}
+
+		private void UpdateTraceMessagesControls()
+		{
+			bool tracingIsEnabled = _enableTracingCheckBox.Checked;
+			_executionTraceMessagesLabel.Enabled = tracingIsEnabled;
+			_executionTraceMessagesTextBox.Enabled = tracingIsEnabled;
+		}
+
+		private StationOptionsInstance GetStationOptions()
 		{
 			return _engineClient.Get_StationOptions(new Engine_Get_StationOptionsRequest { Instance = _engine }).ReturnValue;
 		}
@@ -436,7 +597,8 @@ namespace ExampleClient
 			}
 			catch (RpcException rpcException)
             {
-				if (rpcException.Status.Detail.Contains("Unable to open file"))
+				TSError errorCode = GetTSErrorCode(rpcException, out _);
+				if (errorCode == TSError.TsErrFileWasNotFound || errorCode == TSError.TsErrUnableToOpenFile)
                 {
 					// File does not exist on the server. Return a null object to let the caller know we
 					// cannot get the model options.
@@ -449,6 +611,23 @@ namespace ExampleClient
 			}
 
 			return modelOptions;
+		}
+
+		private TSError GetTSErrorCode(RpcException rpcException, out string description)
+        {
+			description = null;
+
+			string errorCodeString = rpcException.Trailers.GetValue("tserrorcode");
+			if (!string.IsNullOrEmpty(errorCodeString))
+            {
+				if (int.TryParse(errorCodeString, out int errorCode))
+                {
+					description = _engineClient.GetErrorString(new Engine_GetErrorStringRequest { Instance = _engine, ErrorCode = (TSError)errorCode }).ErrorString;
+					return (TSError)errorCode;
+                }
+            }
+
+			return TSError.TsErrNoError;
 		}
 
 		private string GetModelOptionsFilePath()
@@ -525,11 +704,11 @@ namespace ExampleClient
 			_addGlobalButton.Enabled = true;
         }
 
-		private async void OnConnectButtonClick(object sender, EventArgs e)
-		{
-			await TryActionAsync(async () =>
+		private void OnConnectButtonClick(object sender, EventArgs e)
+		{			
+			TryAction(() =>
 			{
-				await Setup(false);
+				Setup(false);
 			}, "Connect to server.");
 		}
 
@@ -560,12 +739,30 @@ namespace ExampleClient
 			}
 		}
 
+		private void TryAction(Action action, string stringToLog)
+		{
+			_ = TryActionAsync(async Task () =>
+			{
+				action();
+				await Task.CompletedTask;
+			}, stringToLog);
+		}
+
 		private void ReportException(Exception exception)
 		{
 			if (exception is RpcException rpcException)
 			{
 				// The grpc exceptions for some cases (like a bad server address) contain the stack trace in the Message, so using the Detail instead
 				LogLine("gRPC EXCEPTION: " + rpcException.Status.Detail);
+
+				TSError errorCode = GetTSErrorCode(rpcException, out string description);
+				if (errorCode != TSError.TsErrNoError)
+				{
+					LogFaded("\tError ");
+					Log(((int)errorCode).ToString());
+					LogFaded("  Message ");
+					LogLine(description);
+				}
 
 				if (rpcException.StatusCode == StatusCode.Unavailable)
 				{
@@ -659,7 +856,13 @@ namespace ExampleClient
 
 				await TryActionAsync(async () =>
 				{
-					await Setup(true);
+					Setup(true);
+
+					// Don't run sequence if connection fails
+					if (!_isConnected)
+                    {
+						return;
+                    }
 
 					EnableApplicationDirectorySearchPath(); // the test.seq file is next to the example server executable
 
@@ -678,12 +881,14 @@ namespace ExampleClient
 						processModel = GetSelectedProcessModel(out string modelName);
 						string sequenceName = GetSelectedSequenceName(processModel);
 
-						await RunSequenceFileAsync(sequenceFile, sequenceName, processModel);
+                        // The process models store the step results in a local variable called "ModelData". We need to get a 
+                        // reference to ModelData to keep the local alive so we can get the step results after the execution ends.
+                        PropertyObjectInstance modelData = await RunSequenceFileAsync(sequenceFile, sequenceName, processModel, modelName);
 
 						var resultStatus = _executionClient.Get_ResultStatus(new Execution_Get_ResultStatusRequest { Instance = _activeExecution }).ReturnValue;
 						SetExecutionStatus(resultStatus);
 
-						LogExecutionResults(resultStatus, processModel, modelName);
+						LogExecutionResults(resultStatus, processModel, modelName, modelData);
 					}
 					finally
 					{
@@ -763,7 +968,11 @@ namespace ExampleClient
 			return processModel == null ? "MainSequence" : _entryPointComboBox.Text;
 		}
 
-		private async Task RunSequenceFileAsync(SequenceFileInstance sequenceFile, string sequenceName, SequenceFileInstance processModel)
+		private async Task<PropertyObjectInstance> RunSequenceFileAsync(
+			SequenceFileInstance sequenceFile,
+			string sequenceName,
+			SequenceFileInstance processModel,
+			string modelName)
 		{
 			var newExecutionRequest = new Engine_NewExecutionRequest
 			{
@@ -788,25 +997,23 @@ namespace ExampleClient
 			}
 			catch (RpcException rpcException)
             {
-				if (rpcException.Status.Detail.Contains("Error loading step"))
-                {
+				TSError errorCode = GetTSErrorCode(rpcException, out string description);
+				if (errorCode != TSError.TsErrNoError)
+				{
 					// Some error messages include additional information that we don't want to display.  The additional
 					// information appears between {}. So, remove all instances of " {<any number of characters>}".
 					string errorMessage = Regex.Replace(rpcException.Status.Detail, @"\s\{[^}]+\}", string.Empty);
-					errorMessage = "Load Error:" + Environment.NewLine + errorMessage;
+					var status = new Status(rpcException.Status.StatusCode, errorMessage, rpcException.Status.DebugException);
 
-					throw new Exception(errorMessage);
+					throw new RpcException(status, rpcException.Trailers, errorMessage);
 				}
 
 				throw;
             }
 
-			SetExecutionStatus(ExecutionStateRunning);
+			PropertyObjectInstance modelData = GetProcessModelModelData(_activeExecution, modelName);
 
-			if (_showTracingCheckBox.Checked)
-			{
-				StartListeningForExecutionTraceMessages(null);
-			}
+			SetExecutionStatus(ExecutionStateRunning);
 
 			try
 			{
@@ -825,65 +1032,165 @@ namespace ExampleClient
 				}
 				throw;
 			}
-			finally
-			{
-				CloseStreamForExecution(_activeExecution);
-			}
+
+			return modelData;
 		}
 
-		private void LogExecutionResults(string resultStatus, SequenceFileInstance processModel, string modelName)
+		private PropertyObjectInstance GetProcessModelModelData(ExecutionInstance execution, string modelName)
+        {
+			if (string.IsNullOrEmpty(modelName) || string.Compare(modelName, "None", StringComparison.OrdinalIgnoreCase) == 0)
+            {
+				return null;
+            }
+
+			// ModelData is a local variable in the root context.
+			ThreadInstance thread = _executionClient.GetThread(new Execution_GetThreadRequest { Instance = execution, Index = 0 }).ReturnValue;
+			SequenceContextInstance currentContext = _threadClient.GetSequenceContext(new Thread_GetSequenceContextRequest { Instance = thread, CallStackIndex = 0 }).ReturnValue;
+			SequenceContextInstance rootContext = _sequenceContextClient.Get_Root(new SequenceContext_Get_RootRequest { Instance = currentContext }).ReturnValue;
+			PropertyObjectInstance locals = _sequenceContextClient.Get_Locals(new SequenceContext_Get_LocalsRequest { Instance = rootContext }).ReturnValue;
+				
+			PropertyObjectInstance modelData = _propertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
+			{
+				Instance = locals,
+				LookupString = "ModelData",
+				Options = PropertyOptions.PropOptionNoOptions
+			}).ReturnValue;
+
+			return modelData;
+        }
+
+		private void LogExecutionResults(string resultStatus, SequenceFileInstance processModel, string modelName, PropertyObjectInstance modelData)
 		{
 			int numberOfResults = 0;
+
 			if (processModel != null && !IsSequentialModelName(modelName))
 			{
-				LogLine("This example is not currently retrieving results for Parallel and Batch socket executions.");
+				numberOfResults = DisplayResultsForBatchOrParallelModelRuns(modelData, modelName);
 			}
 			else
 			{
 				bool hasResults = true;
+				PropertyObjectInstance executionResults = _executionClient.Get_ResultObject(new Execution_Get_ResultObjectRequest { Instance = _activeExecution }).ReturnValue;
 
-				var executionResults = _executionClient.Get_ResultObject(new Execution_Get_ResultObjectRequest { Instance = _activeExecution }).ReturnValue;
-				var resultList = _propertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
+				if (processModel != null)
 				{
-					Instance = executionResults,
-					LookupString = "ResultList",
-					Options = PropertyOptions.PropOptionNoOptions
-				}).ReturnValue;
-
-				// When running using the Sequential model, the results are stored in ResultList[0].TS.SequenceCall.ResultList.
-				// The top level result list is from the model. Its first and only result is the result of the call to main sequence.
-				//
-				// If the execution terminates before any steps in the sequence file are executed, ResultList will be empty since
-				// the call the MainSequence of the sequence file is never done. Therefore, we need to check if ResultList has one
-				// element before trying to get the results for the sequence file.
-				if (processModel != null && IsSequentialModelName(modelName))
-				{
-					var elementCount = _propertyObjectClient.GetNumElements(new PropertyObject_GetNumElementsRequest
+					if (IsSequentialModelName(modelName))
 					{
-						Instance = resultList,
-					}).ReturnValue;
-
-					hasResults = elementCount == 1;
-					if (hasResults)
-					{
-						resultList = _propertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
+						var resultList = _propertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
 						{
 							Instance = executionResults,
-							LookupString = "ResultList[0].TS.SequenceCall.ResultList",
+							LookupString = "ResultList",
 							Options = PropertyOptions.PropOptionNoOptions
 						}).ReturnValue;
+
+						var elementCount = _propertyObjectClient.GetNumElements(new PropertyObject_GetNumElementsRequest
+						{
+							Instance = resultList,
+						}).ReturnValue;
+
+						hasResults = elementCount == 1;
+						if (hasResults)
+						{
+							executionResults = _propertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
+							{
+								Instance = executionResults,
+								LookupString = "ResultList[0].TS.SequenceCall",
+								Options = PropertyOptions.PropOptionNoOptions
+							}).ReturnValue;
+
+							string entryPointName = _propertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
+							{
+								Instance = modelData,
+								LookupString = "EntryPoint",
+								Options = PropertyOptions.PropOptionNoOptions
+							}).ReturnValue;
+
+							string sequenceName = _propertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
+							{
+								Instance = executionResults,
+								LookupString = "Sequence",
+								Options = PropertyOptions.PropOptionNoOptions
+							}).ReturnValue;
+
+							LogLine(Invariant($"Results for '{_sequenceFileNameComboBox.Text}' using '{modelName}: {entryPointName}'"));
+						}
 					}
+				}
+				else
+				{
+					string sequenceName = _propertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
+					{
+						Instance = executionResults,
+						LookupString = "Sequence",
+						Options = PropertyOptions.PropOptionNoOptions
+					}).ReturnValue;
+
+					LogLine(Invariant($"Results for '{_sequenceFileNameComboBox.Text}: {sequenceName}'"));
 				}
 
 				if (hasResults)
 				{
-					numberOfResults = ListExecutionResults(resultList);
+					numberOfResults = DisplayResults(executionResults, indentationLevel: 0);
 				}
 			}
 
 			Log("Execution Complete. Status: ");
 			Log(resultStatus, GetResultBackgroundColor(resultStatus));
 			LogLine(", Number of Results = " + numberOfResults.ToString(CultureInfo.InvariantCulture));
+		}
+
+		private int DisplayResultsForBatchOrParallelModelRuns(PropertyObjectInstance modelData, string modelName)
+        {
+			int numberOfResults = 0;
+
+			Debug.Assert(modelData != null);
+
+			string entryPointName = _propertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
+			{
+				Instance = modelData,
+				LookupString = "EntryPoint",
+				Options = PropertyOptions.PropOptionNoOptions
+			}).ReturnValue;
+
+			LogLine(Invariant($"Results for '{_sequenceFileNameComboBox.Text}' using '{modelName}: {entryPointName}'"));
+
+            // The results are under ModelData.TestSockets.
+            PropertyObjectInstance testSockets = _propertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
+			{
+				Instance = modelData,
+				LookupString = "TestSockets",
+				Options = PropertyOptions.PropOptionNoOptions
+			}).ReturnValue;
+
+			int numberOfTestSockets = _propertyObjectClient.GetNumElements(new PropertyObject_GetNumElementsRequest
+			{
+				Instance = testSockets,
+			}).ReturnValue;
+
+			for (int socketIndex = 0; socketIndex < numberOfTestSockets; socketIndex++)
+			{
+				string socketResultLookupString = Invariant($"[{socketIndex}].MainSequenceResults.TS.SequenceCall");
+				PropertyObjectInstance socketResults = _propertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
+				{
+					Instance = testSockets,
+					LookupString = socketResultLookupString,
+					Options = PropertyOptions.PropOptionNoOptions
+				}).ReturnValue;
+
+				var sequenceCallStatus = _propertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
+				{
+					Instance = socketResults,
+					LookupString = "Status",
+					Options = PropertyOptions.PropOptionNoOptions
+				}).ReturnValue;
+
+				LogBold(Invariant($"Socket {socketIndex}: "));
+				LogLine(sequenceCallStatus, GetResultBackgroundColor(sequenceCallStatus));
+
+				numberOfResults += DisplayResults(socketResults, indentationLevel: 0);
+			}
+
+			return numberOfResults;
 		}
 
 		private static bool IsSequentialModelName(string processModelName)
@@ -900,96 +1207,29 @@ namespace ExampleClient
 			}
 			else
 			{
-			_executionStatePictureBox.Image = new Bitmap(_imageList[executionStatus]);
-			_executionStateDescriptionLabel.Text = executionStatus;
-		}
-		}
-
-		private void StartListeningForExecutionTraceMessages(ExecutionInstance execution)
-        {
-			if (execution != null)
-			{
-				// When specifying an execution, we will only show traces messages for that particular execution.
-				long executionId = _executionClient.Get_Id(new Execution_Get_IdRequest { Instance = execution }).ReturnValue;
-
-				// Read trace messages in a background thread
-				_ = Task.Run(async() => await TraceSingleExecutionAsync(executionId));
-			}
-
-			// There should only be one open stream for getting all execution trace messages
-			else if (!_traceMessagesStreams.ContainsKey(IdForStreamForTracingAllExecutions))
-            {
-				// Read trace messages in a background thread
-				_ = Task.Run(async () => await TraceAllExecutionsAsync());
-            }
-		}
-
-		private async Task TraceSingleExecutionAsync(long executionId)
-        {
-			var request = new BTS.ExecutionTraceEvents.ExecutionTraceEvents_GetTraceEventMessagesRequest { ExecutionId = executionId };
-
-			// Open the stream. The stream will remain open until the server tells us there are no more messages or streaming is cancelled.
-			var messagesStream = _btsTraceEventsClient.GetTraceEventMessages(request);
-
-			// Track all streams so they can be cancelled if requested
-			TrackTraceMessageCallStream(executionId, messagesStream);
-
-			// ReadAllAsync creates an IAsyncEnumerable<out T> that enables reading all of the data from the stream reader.
-			await foreach (var traceMessage in messagesStream.ResponseStream.ReadAllAsync())
-			{
-				_executionTraceMessagesTextBox.Invoke((Action)(() => LogTraceMessage(traceMessage.Messages)));
+				_executionStatePictureBox.Image = new Bitmap(_imageList[executionStatus]);
+				_executionStateDescriptionLabel.Text = executionStatus;
 			}
 		}
 
-		private async Task TraceAllExecutionsAsync()
+		private int DisplayResults(PropertyObjectInstance resultObject, int indentationLevel)
 		{
-			var request = new BTS.ExecutionTraceEvents.ExecutionTraceEvents_GetTraceEventMessagesForAllExecutionsRequest();
-
-			// Open the stream. The stream will remain open until the server tells us there are no more messages.
-			var messagesStream = _btsTraceEventsClient.GetTraceEventMessagesForAllExecutions(request);
-
-			// Add stream to list so we can cancel it if requested
-			TrackTraceMessageCallStream(IdForStreamForTracingAllExecutions, messagesStream);
-
-			// ReadAllAsync creates an IAsyncEnumerable<out T> that enables reading all of the data from the stream reader.
-			await foreach (var traceMessage in messagesStream.ResponseStream.ReadAllAsync())
+			var resultList = _propertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
 			{
-				_executionTraceMessagesTextBox.Invoke((Action)(() => LogTraceMessage(traceMessage.Messages)));
-			}
-		}
-
-		private void TrackTraceMessageCallStream(long executionId, IDisposable stream)
-        {
-			_traceMessagesStreams[executionId] = stream;
-		}
-
-		private void CloseTraceMessagesStream(long executionId)
-        {
-			if (_traceMessagesStreams.TryGetValue(executionId, out IDisposable messageStream))
-			{
-				_traceMessagesStreams.Remove(executionId);
-
-				// Disposing the stream will close it or cancelled if it is still streaming.
-				messageStream.Dispose();
-			}
-		}
-
-		private void CloseStreamForExecution(ExecutionInstance execution)
-		{
-			long executionId = _executionClient.Get_Id(new Execution_Get_IdRequest { Instance = execution }).ReturnValue;
-			CloseTraceMessagesStream(executionId);
-		}
-
-		private int ListExecutionResults(PropertyObjectInstance mainSequenceResults)
-		{
-			var numberOfResults = _propertyObjectClient.GetNumElements(new PropertyObject_GetNumElementsRequest
-			{
-				Instance = mainSequenceResults
+				Instance = resultObject,
+				LookupString = "ResultList",
+				Options = PropertyOptions.PropOptionNoOptions
 			}).ReturnValue;
 
+			var numberOfResults = _propertyObjectClient.GetNumElements(new PropertyObject_GetNumElementsRequest
+			{
+				Instance = resultList
+			}).ReturnValue;
+
+			int totalNumberOfResults = numberOfResults;
 			if (numberOfResults == 0)
 			{
-				LogLine("No results.");
+				LogLine("No results.", indentationLevel);
 			}
 			else
 			{
@@ -997,7 +1237,7 @@ namespace ExampleClient
 				{
 					var nthResult = _propertyObjectClient.GetPropertyObjectByOffset(new PropertyObject_GetPropertyObjectByOffsetRequest
 					{
-						Instance = mainSequenceResults,
+						Instance = resultList,
 						ArrayOffset = index,
 						Options = PropertyOptions.PropOptionNoOptions
 					}).ReturnValue;
@@ -1015,9 +1255,11 @@ namespace ExampleClient
 						LookupString = "Status",
 						Options = PropertyOptions.PropOptionNoOptions
 					}).ReturnValue;
+					string formattedStepStatus = string.Format("{0, -7}", stepStatus);
 
-					Log(Invariant($"Result #{index}, Step Name: {stepName}, Status = "));
-					LogLine(stepStatus, GetResultBackgroundColor(stepStatus));
+					Log(formattedStepStatus, GetResultBackgroundColor(stepStatus), indentationLevel: 0, overlayColor: false);
+					LogFaded("  Step ", indentationLevel);
+					LogLine(stepName);
 
 					if (stepStatus == ExecutionStateError)
 					{
@@ -1035,26 +1277,57 @@ namespace ExampleClient
 							Options = PropertyOptions.PropOptionNoOptions
 						}).ReturnValue;
 
-						LogLine(Invariant($"    Code = {code}, Message = {message}"));
+						// Indent the Code label below the Step label.
+						// 7 for status column + 2 for empty space before "Step" label + IndentOffsetForOneLevel
+						int labelIndentOffset = IndentOffsetForOneLevel + 9;
+						string indentedCodeLabel = string.Format("{0," + labelIndentOffset + "}Code ", "");
+
+						LogFaded(indentedCodeLabel, indentationLevel + 1);
+						Log(code.ToString());
+						LogFaded("  Message ");
+						LogLine(message);
+					}
+
+					// If the property TS.SequenceCall exists in the current result, it means it is a 
+					// sequence call. So, recurse to get those results.
+					bool isSequenceCall = _propertyObjectClient.Exists(new PropertyObject_ExistsRequest
+					{
+						Instance = nthResult,
+						LookupString = "TS.SequenceCall",
+						Options = PropertyOptions.PropOptionNoOptions
+					}).ReturnValue;
+					if (isSequenceCall)
+					{
+						var sequenceCall = _propertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
+						{
+							Instance = nthResult,
+							LookupString = "TS.SequenceCall",
+							Options = PropertyOptions.PropOptionNoOptions
+						}).ReturnValue;
+
+						totalNumberOfResults += DisplayResults(sequenceCall, indentationLevel + 1);
 					}
 				}
 			}
 
-			return numberOfResults;
+			return totalNumberOfResults;
 		}
 
 		private void OnLoad(object sender, EventArgs e)
 		{
-			_processModelComboBox.SelectedIndex = 0;
+			// Add some space between the lines in the log and trace messages text.
+			// The space will make the lines more readable.
+            SetLineSpacing(_logTextBox);
+			SetLineSpacing(_executionTraceMessagesTextBox);
+
+            _processModelComboBox.SelectedIndex = 0;
 			_entryPointComboBox.SelectedIndex = 0;
 			_sequenceFileNameComboBox.SelectedIndex = 0;
 		}
 
 		private void OnClosing(object sender, System.ComponentModel.CancelEventArgs e)
 		{
-			CloseAllStreams();
-			_listenForServerShutdownStream?.Dispose();
-			ReleaseEngineReference();
+			Cleanup();
 		}
 
 		private void OnClearOutputButtonClick(object sender, EventArgs e)
@@ -1221,9 +1494,6 @@ namespace ExampleClient
         {
 			// To check the connection to the server, we need to do a simple-non-updating Engine call. If the call
 			// fails with the status code set to Unavailable, we know the connection to the server has been lost.
-			// We cannot completly rely on StartListeningForServerShutdownAsync for determining if the server is
-			// down because we will not get a message if the server crashes. This heartbeat complements 
-			// StartListeningForServerShutdownAsync.
 			if (_isConnected)
 			{
 				try
@@ -1405,16 +1675,6 @@ namespace ExampleClient
 			ClearTraceMessages();
         }
 
-		private void CloseAllStreams()
-        {
-			long[] executionIds = _traceMessagesStreams.Keys.ToArray();
-
-			for (int index = 0; index < executionIds.Length; index++)
-			{
-				CloseTraceMessagesStream(executionIds[index]);
-			}
-		}
-
 		private void IdentifyThread(ThreadInstance thread, out ThreadInfo threadInfo)
 		{
 			SequenceContextInstance rootContext;
@@ -1573,32 +1833,31 @@ namespace ExampleClient
 			}
 		}
 
-        private void OnShowTracingCheckBoxCheckStateChanged(object sender, EventArgs e)
+        private void OnEnableTracingCheckBoxCheckStateChanged(object sender, EventArgs e)
         {
-			if (!_showTracingCheckBox.Checked)
-            {
-				CloseAllStreams();
-			}
-			else
-            {
-				// If there are no executions running, there is nothing to do.
-				lock (_dataLock)
+			StationOptionsInstance stationOptions = GetStationOptions();
+			_stationOptionsClient.Set_TracingEnabled(
+				new StationOptions_Set_TracingEnabledRequest
 				{
-					if (_activeExecution != null)
-					{
-						StartListeningForExecutionTraceMessages(null);
-					}
-				}
+					Instance = stationOptions,
+					IsEnabled = _enableTracingCheckBox.Checked
+				});
+
+			UpdateTraceMessagesControls();
+
+			if (!_enableTracingCheckBox.Checked)
+            {
+
+
 			}
 
-			LogTraceMessage("Tracing is " + (_showTracingCheckBox.Checked ? "enabled." : "disabled.") + Environment.NewLine);
+			Log("Tracing on the server is " + (_enableTracingCheckBox.Checked ? "enabled." : "disabled.") + Environment.NewLine);
 		}
 
 		private static Color GetResultBackgroundColor(string stepStatus)
 		{
-			return stepStatus switch
+			return stepStatus.Trim() switch
 			{
-				StepResultDone => Color.FromArgb(217, 208, 229),				
 				ExecutionStateError or ExecutionStateFailed => Color.FromArgb(241, 178, 185),
 				ExecutionStatePassed => Color.FromArgb(187, 237, 196),
 				StepResultSkipped => Color.FromArgb(192, 192, 192),
@@ -1606,44 +1865,91 @@ namespace ExampleClient
 			};
 		}
 
-		private void LogLine(string lineToLog)
+		private void LogLine(string lineToLog, int indentationLevel = 0)
         {
-			Log(lineToLog + Environment.NewLine);
+			Log(lineToLog + Environment.NewLine, indentationLevel);
 		}
-		private void Log(string stringToLog)
-		{
-			_logTextBox.AppendText(stringToLog);
-			ScrollToBottomOfText(_logTextBox);
+		private void Log(string stringToLog, int indentationLevel = 0)
+        {
+			stringToLog = GetIndentSpace(indentationLevel) + stringToLog;
+			this.BeginInvoke(() =>  // BeginInvoke, so this can be called from any thread without blocking
+			{ 
+				_logTextBox.AppendText(stringToLog);
+				ScrollToBottomOfText(_logTextBox);
+			});
 		}
 
-		private void LogLine(string lineToLog, Color textBackgroundColor)
+        /// <summary>
+        /// Appends the given line to the log control
+        /// </summary>
+        /// <param name="lineToLog">The line of text to append</param>
+        /// <param name="textBackgroundColor">The background color to use to highlight the text</param>
+        /// <param name="indentationLevel">The indentation level of the text</param>
+        /// <param name="overlayColor">When true, the text is highlighted. When false, a color box will be added to the left of the text.</param>
+        private void LogLine(string lineToLog, Color textBackgroundColor, int indentationLevel = 0, bool overlayColor = true)
         {
-			Log(lineToLog + Environment.NewLine, textBackgroundColor);
+			Log(lineToLog + Environment.NewLine, textBackgroundColor, indentationLevel, overlayColor);
         }
 
-		private void Log(string stringToLog, Color textBackgroundColor)
+		/// <summary>
+		/// Appends the given string to the log control
+		/// </summary>
+		/// <param name="lineToLog">The line of text to append</param>
+		/// <param name="textBackgroundColor">The background color to use to highlight the text</param>
+		/// <param name="indentationLevel">The indentation level of the text</param>
+		/// <param name="overlayColor">When true, the text is highlighted. When false, a color box will be added to the left of the text.</param>
+		private void Log(string stringToLog, Color textBackgroundColor, int indentationLevel = 0, bool overlayColor = true)
+		{
+			// BeginInvoke, so this can be called from any thread without blocking
+			this.BeginInvoke(() => LogImpl(stringToLog, textBackgroundColor, indentationLevel, overlayColor));
+		}
+
+		private void LogImpl(string stringToLog, Color textBackgroundColor, int indentationLevel = 0, bool overlayColor = true)
         {
-			int startSelection = _logTextBox.TextLength;
+			int indentOffset = indentationLevel * IndentOffsetForOneLevel;
+            int startSelection = _logTextBox.TextLength + indentOffset;
 			Color originalSelectionBackgroundColor = _logTextBox.SelectionBackColor;
+
+            stringToLog = GetIndentSpace(indentationLevel) + stringToLog;
+
+            int selectionLength;
+            if (overlayColor)
+			{
+				selectionLength = stringToLog.Length;
+			}
+			else
+			{
+                // When not overlaying the color, we need to add a box with the given color before the text.
+                selectionLength = ColorBoxWidth;
+                stringToLog = stringToLog.Insert(indentOffset, ColorBoxSpace);
+			}
 
 			_logTextBox.AppendText(stringToLog);
 
-			_logTextBox.Select(startSelection, stringToLog.Length);
+			_logTextBox.Select(startSelection, selectionLength);
 			_logTextBox.SelectionBackColor = textBackgroundColor;
 
 			// Reset selection and color
-			_logTextBox.Select(startSelection + stringToLog.Length, 0);
+			_logTextBox.Select(startSelection + selectionLength, 0);
 			_logTextBox.SelectionBackColor = originalSelectionBackgroundColor;
 
 			ScrollToBottomOfText(_logTextBox);
         }
 
-		private void LogBold(string stringToLog)
+		private void LogBold(string stringToLog, int indentationLevel = 0)
+		{
+			// BeginInvoke, so this can be called from any thread without blocking
+			BeginInvoke(() => LogBoldImpl(stringToLog, indentationLevel));
+		}
+
+		private void LogBoldImpl(string stringToLog, int indentationLevel = 0)
         {
 			int startSelection = _logTextBox.TextLength;
 			Font originalSelectionFont = _logTextBox.SelectionFont;
 
-			_logTextBox.AppendText(stringToLog);
+            stringToLog = GetIndentSpace(indentationLevel) + stringToLog;
+
+            _logTextBox.AppendText(stringToLog);
 			_logTextBox.Select(startSelection, stringToLog.Length);
 			_logTextBox.SelectionFont = new Font(_logTextBox.Font, FontStyle.Bold);
 
@@ -1654,42 +1960,144 @@ namespace ExampleClient
 			ScrollToBottomOfText(_logTextBox);
 		}
 
-		private static void ScrollToBottomOfText(RichTextBox richTextBox)
+		private void LogFaded(string stringToLog, int indentationLevel = 0)
+		{
+			// BeginInvoke, so this can be called from any thread without blocking
+			BeginInvoke(() => LogFadedImpl(stringToLog, indentationLevel));
+		}
+
+		private void LogFadedImpl(string stringToLog, int indentationLevel = 0)
+		{
+            int startSelection = _logTextBox.TextLength;
+            Color originalSelectionColor = _logTextBox.SelectionColor;
+
+            stringToLog = GetIndentSpace(indentationLevel) + stringToLog;
+
+            _logTextBox.AppendText(stringToLog);
+            _logTextBox.Select(startSelection, stringToLog.Length);
+            _logTextBox.SelectionColor = Color.FromArgb(129, 131, 134); // Light gray
+
+            // Reset selection and color
+            _logTextBox.Select(startSelection + stringToLog.Length, 0);
+            _logTextBox.SelectionColor = originalSelectionColor;
+        }
+
+        private static void ScrollToBottomOfText(RichTextBox richTextBox)
         {
 			richTextBox.SelectionStart = richTextBox.Text.Length;
 			richTextBox.ScrollToCaret();
 		}
 
-		private void LogTraceMessage(string traceMessage)
-        {
-			const string StatusString = "Status: ";
+		private void LogTraceMessage(string traceMessage) 
+		{
+			// BeginInvoke, so this can be called from any thread without blocking
+			Debug.Assert(_enableTracingCheckBox.Checked);
+			BeginInvoke(() => LogTraceMessageImpl(traceMessage));
+		}
+
+
+		private void LogTraceMessageImpl(string traceMessage)
+		{
+			int startSearchOffset = _executionTraceMessagesTextBox.Text.Length;
+
+			traceMessage = InsertColorBoxSpaceToTraceMessage(traceMessage);
 
 			_executionTraceMessagesTextBox.AppendText(traceMessage);
 
-			// Set color on step result
-			int startSelection = _executionTraceMessagesTextBox.Text.LastIndexOf(StatusString);
-			if (startSelection != -1)
+			FadeLabel("Socket", startSearchOffset);
+			AddColorBoxToTraceResult(startSearchOffset);
+			FadeLabel("Step", startSearchOffset);
+
+			// If trace message has an error, fade the error labels
+			if (traceMessage.IndexOf("Code") != -1)
 			{
-				Color originalSelectionBackgroundColor = _executionTraceMessagesTextBox.SelectionBackColor;
+				// Start searching on the error message line
+				int indexOfNewLine = traceMessage.IndexOf('\n');
+				startSearchOffset += indexOfNewLine;
 
-				startSelection += StatusString.Length;
-
-				// The status is at the end of the first line.
-				int endSelection = _executionTraceMessagesTextBox.Text.IndexOf('\n', startSelection);
-				string status = _executionTraceMessagesTextBox.Text[startSelection..endSelection];
-
-				_executionTraceMessagesTextBox.Select(startSelection, status.Length); 
-				_executionTraceMessagesTextBox.SelectionBackColor = GetResultBackgroundColor(status);
-
-				// Reset selection and color
-				_executionTraceMessagesTextBox.Select(startSelection + status.Length, 0);
-				_executionTraceMessagesTextBox.SelectionBackColor = originalSelectionBackgroundColor;
+				FadeLabel("Code", startSearchOffset);
+				FadeLabel("Message", startSearchOffset);
 			}
 
 			ScrollToBottomOfText(_executionTraceMessagesTextBox);
 		}
 
-		private void ClearTraceMessages()
+		private string InsertColorBoxSpaceToTraceMessage(string traceMessage)
+		{
+            int startIndex = traceMessage.IndexOf("Step");
+			if (startIndex != -1)
+			{
+				// Insertion starts at the beginning of status.
+				// Add 2 additional spaces to include space between status and "Step" label;
+				startIndex -= (StatusLength + 2);
+
+				// Insert status box color space
+                traceMessage = traceMessage.Insert(startIndex, ColorBoxSpace);
+
+                // If trace message has an error, we need to indent the error line as well.
+                if (traceMessage.IndexOf("Code") != -1)
+				{
+					int indexOfNewLine = traceMessage.IndexOf('\n');
+					if (indexOfNewLine != -1)
+					{
+						traceMessage = traceMessage.Insert(indexOfNewLine + 1, ColorBoxSpace);
+					}
+				}
+            }
+
+            return traceMessage;
+        }
+
+        private void FadeLabel(string label, int startSearchOffset)
+		{
+			int startSelection = _executionTraceMessagesTextBox.Text.IndexOf(label, startSearchOffset);
+            if (startSelection != -1)
+            {
+                Color originalSelectionColor = _executionTraceMessagesTextBox.SelectionColor;
+
+                _executionTraceMessagesTextBox.Select(startSelection, label.Length);
+                _executionTraceMessagesTextBox.SelectionColor = Color.FromArgb(129, 131, 134);
+
+                // Reset selection and color
+                _executionTraceMessagesTextBox.Select(startSelection + label.Length, 0);
+                _executionTraceMessagesTextBox.SelectionColor = originalSelectionColor;
+            }
+        }
+
+		private void AddColorBoxToTraceResult(int startSearchOffset)
+		{
+            int startSelection = _executionTraceMessagesTextBox.Text.IndexOf("Step", startSearchOffset);
+            if (startSelection != -1)
+            {
+                // Selection starts at the beginning of the colorbox space.
+                // Add 2 additional spaces to include space between status and "Step" label;
+                startSelection -= (StatusLength + ColorBoxSpace.Length + 2); 
+
+                Color originalSelectionBackgroundColor = _executionTraceMessagesTextBox.SelectionBackColor;
+                string status = _executionTraceMessagesTextBox.Text.Substring(startSelection + ColorBoxSpace.Length, StatusLength);
+
+                _executionTraceMessagesTextBox.Select(startSelection, ColorBoxWidth);
+                _executionTraceMessagesTextBox.SelectionBackColor = GetResultBackgroundColor(status);
+
+                // Reset selection and color
+                _executionTraceMessagesTextBox.Select(startSelection + ColorBoxWidth, 0);
+                _executionTraceMessagesTextBox.SelectionBackColor = originalSelectionBackgroundColor;
+            }
+        }
+
+        private string GetIndentSpace(int indentationLevel)
+        {
+            string indentSpace = string.Empty;
+            while (indentationLevel > 0)
+            {
+                indentSpace = IndentSpace + indentSpace;
+                indentationLevel--;
+            }
+
+            return indentSpace;
+        }
+
+        private void ClearTraceMessages()
         {
 			_executionTraceMessagesTextBox.Text = string.Empty;
 		}
@@ -1721,7 +2129,44 @@ namespace ExampleClient
 			}
         }
 
-		private class AutoWaitCursor : IDisposable
+        private void SetLineSpacing(RichTextBox richTextBox)
+        {
+            // The only way to set line spacing on a RichTextBox is
+            // through a EM_SETPARAFORMAT message.
+
+            var paraformat = new PARAFORMAT2();
+            paraformat.cbSize = (uint)Marshal.SizeOf(paraformat);
+            paraformat.wReserved = 0;
+            paraformat.dwMask = (uint)RichTextBoxOptions.PFM_LINESPACING;
+			paraformat.dyLineSpacing = 25;  // 1.25 line spacing
+
+            // The value of dyLineSpacing/20 is the spacing, in lines, from one line to the next.
+			// Thus, setting dyLineSpacing to 20 produces single-spaced text, 40 is double spaced,
+			// 60 is triple spaced, and so on.
+            paraformat.bLineSpacingRule = 5;
+
+            IntPtr lParam = IntPtr.Zero;
+			try
+			{
+				lParam = Marshal.AllocHGlobal(Marshal.SizeOf(paraformat));
+				Marshal.StructureToPtr(paraformat, lParam, false);
+
+				SendMessage(
+					new HandleRef(richTextBox, richTextBox.Handle),
+					(int)WindowsMessage.EM_SETPARAFORMAT,
+					new IntPtr((int)RichTextBoxOptions.SCF_SELECTION),
+					lParam);
+			}
+			finally
+			{
+				if (lParam != IntPtr.Zero)
+				{
+					Marshal.FreeHGlobal(lParam);
+				}
+			}
+        }
+
+        private class AutoWaitCursor : IDisposable
 		{
 			private readonly Example _exampleApplication;
 			private bool _disposedValue = false;

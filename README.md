@@ -67,7 +67,20 @@ After running the sequence file on a server, you can optionally use the TestMoni
 
 ---
 
+
+## Incompatibilities
+
+| Nuget Package Version | Comment |
+| -- | -- |
+| 15 | The namespace changed from NationalInstruments.TestStand.gRPC.Server to NationalInstruments.TestStand.Grpc.Server|
+| 16 | None |
+| 17 | All services with suffix "Class" had that suffix removed. Their corresponding interfaces were also deleted. For example, EngineClass has been renamed to Engine and IEngine has been deleted. |
+
+---
+
 ## See Also
 [Overview for gRPC on .NET](https://docs.microsoft.com/en-us/aspnet/core/grpc/?view=aspnetcore-5.0)
 
 [.NET Generic Host in ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host?view=aspnetcore-5.0)
+
+[Server Security Support](https://github.com/ni/grpc-device/wiki/Server-Security-Support)

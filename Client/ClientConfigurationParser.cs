@@ -43,8 +43,8 @@ namespace ExampleClient
 
     public class ClientOptions
     {
-        // 5001 is the port number used by many microsoft examples.
-        public int Port { get; set; } = 5001;
+        // 5020 is used to avoid conflicting with NI Services
+        public int Port { get; set; } = 5020;
 
         public Security Security { get; set; } = new Security();
 
