@@ -34,7 +34,7 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <UseWindowsForms>true</UseWindowsForms>
     <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
-	<Platforms>AnyCPU;x86</Platforms>
+	<Platforms>x86;x64</Platforms>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
     <OutputPath>bin\x86\Debug\</OutputPath>
@@ -99,7 +99,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Windows.Compatibility" Version="5.0.2" />
-    <PackageReference Include="NationalInstruments.TestStand.gRPC.Server" Version="0.5.0-*" />
+    <PackageReference Include="NationalInstruments.TestStand.Grpc.Server" Version="0.5.0-*" />
   </ItemGroup>
   <ItemGroup>
     <None Update="LoadError.seq">
