@@ -1,5 +1,5 @@
-﻿using System.IO;
-using System.Reflection;
+﻿using System;
+using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -18,7 +18,7 @@ namespace TestStandGrpcApi
         {
             if (string.IsNullOrEmpty(configFilePath))
             {
-                configFilePath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), DefaultConfigFileName);
+				configFilePath = Path.Combine(AppContext.BaseDirectory, DefaultConfigFileName);
             }
 
             if (File.Exists(configFilePath))

@@ -14,9 +14,13 @@
 //			National Instruments recommends that you track the changes you make to the user interface source code files so you can integrate the changes with any enhancements in future versions of the TestStand User Interfaces.
 
 using System;
-using System.Windows.Forms;
-using NationalInstruments.TestStand.Grpc.Net.Server.OO;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
+using System.Windows.Forms;
+
+using NationalInstruments.TestStand.Grpc.Net.Server.OO;
 
 // TestStand Core API 
 using NationalInstruments.TestStand.Interop.API;
@@ -33,8 +37,9 @@ namespace TestExecServer
 	/// <summary>
 	/// Summary description for MainForm.
 	/// </summary>
-	public class MainForm : System.Windows.Forms.Form
+	public class MainForm : Form
 	{
+		private const int WM_QUERYENDSESSION = 0x11; // See Microsoft documentation.
 		private const string WindowTitle = "Simple Test Executive Operator Interface Example - with gRPC server";
 
 		private NationalInstruments.TestStand.Interop.UI.Ax.AxComboBox axFilesComboBox;
@@ -62,13 +67,13 @@ namespace TestExecServer
 		private NationalInstruments.TestStand.Interop.UI.Ax.AxButton axTerminateAllButton;
 		private System.ComponentModel.IContainer components;
         
-		private const int WM_QUERYENDSESSION = 0x11;
-		private System.Windows.Forms.NotifyIcon notifyIcon;
+		private bool _isHeadless;
+		private NotifyIcon _notifyIcon;
 
 		// flag that will be set to true if the user tries to shut down windows
-		private bool sessionEnding = false;
+		private bool _sessionEnding = false;
 
-		public MainForm()
+		public MainForm(bool isHeadless)
 		{
 			// Required for Windows Form Designer support
 			InitializeComponent();
@@ -77,6 +82,28 @@ namespace TestExecServer
 
 			// NOTE: Add any constructor code after InitializeComponent call
 			this.Icon = Properties.Resources.App;
+
+			SetHeadlessState(isHeadless);
+		}
+
+		private void SetHeadlessState(bool isHeadless)
+		{
+			_isHeadless = isHeadless;
+			if (_isHeadless)
+			{
+				var exitItem = new ToolStripMenuItem("Exit", null, (s, e) => Close());
+				var contextMenuStrip = new ContextMenuStrip();
+				contextMenuStrip.Items.Add(exitItem);
+
+				_notifyIcon.ContextMenuStrip = contextMenuStrip;
+				_notifyIcon.Visible = true;
+
+				// Minimizing the window will hide the main window and remove it from the taskbar
+				WindowState = FormWindowState.Minimized;
+
+				// For a headless application, don't open the main window when double clicking on tray icon
+				_notifyIcon.MouseDoubleClick -= NotifyIcon_MouseDoubleClick;
+			}
 		}
 
 		/// <summary>
@@ -128,7 +155,7 @@ namespace TestExecServer
 			this.axLoginLogoutButton = new NationalInstruments.TestStand.Interop.UI.Ax.AxButton();
 			this.axExitButton = new NationalInstruments.TestStand.Interop.UI.Ax.AxButton();
 			this.axTerminateAllButton = new NationalInstruments.TestStand.Interop.UI.Ax.AxButton();
-			this.notifyIcon = new System.Windows.Forms.NotifyIcon(this.components);
+			this._notifyIcon = new System.Windows.Forms.NotifyIcon(this.components);
 			((System.ComponentModel.ISupportInitialize)(this.axApplicationMgr)).BeginInit();
 			((System.ComponentModel.ISupportInitialize)(this.axFilesComboBox)).BeginInit();
 			((System.ComponentModel.ISupportInitialize)(this.axSequencesComboBox)).BeginInit();
@@ -337,10 +364,8 @@ namespace TestExecServer
 			// 
 			// notifyIcon
 			// 
-			this.notifyIcon.BalloonTipText = "TestExecServer";
-			this.notifyIcon.Icon = ((System.Drawing.Icon)(resources.GetObject("notifyIcon.Icon")));
-			this.notifyIcon.Text = "TestExecServer";
-			this.notifyIcon.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.NotifyIcon_MouseDoubleClick);
+			this._notifyIcon.Icon = this.Icon;
+			this._notifyIcon.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.NotifyIcon_MouseDoubleClick);
 			// 
 			// MainForm
 			// 
@@ -406,7 +431,8 @@ namespace TestExecServer
 		{
 			Application.SetHighDpiMode(HighDpiMode.DpiUnaware);
 
-			var form = new MainForm();
+			bool isHeadless = Array.Exists(args, arg => string.Equals(arg, "/headless", StringComparison.OrdinalIgnoreCase));
+			var form = new MainForm(isHeadless);
 
 			// specify an action to perform if waiting on a client event reply in the GUI thread. This is optional. It will improve UI responsiveness
 			// of the server app when clients go unresponsive and the title bar message will inform a user who is interacting with the server app
@@ -500,7 +526,24 @@ namespace TestExecServer
 
 			if (string.IsNullOrEmpty(TestStandGrpcApi.GrpcServer.ErrorMessage))
 			{
-				Text += TestStandGrpcApi.GrpcServer.UsesHttps ? " [Secure]" : " [Not secure]";
+				string typeOfConnection = TestStandGrpcApi.GrpcServer.UsesHttps ? " [Secure]" : " [Not secure]";
+				Text += typeOfConnection;
+
+				string trayText = "TestStand gRPC Server" + typeOfConnection;
+				_notifyIcon.BalloonTipTitle = trayText;
+				_notifyIcon.Text = trayText;
+			}
+			else if (_isHeadless)
+			{
+				string message = "Failed to initialize gRPC service with following error(s):\n\n" + TestStandGrpcApi.GrpcServer.ErrorMessage;
+
+				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+				{
+					WriteErrorToEventLog(message);
+				}
+
+				// For a headless application, there is no point of continuning if there is no gRPC service. So, close the application.
+				Close();
 			}
 			else
 			{
@@ -512,6 +555,7 @@ namespace TestExecServer
 				{
 					string message = "Failed to initialize gRPC service with following error(s):\n\n" + TestStandGrpcApi.GrpcServer.ErrorMessage;
 					axApplicationMgr.RaiseError((int)TSError.TS_Err_OperationFailed, message);
+
 				});
             }
 		}
@@ -521,7 +565,7 @@ namespace TestExecServer
 		{
 			// Don't set e.Cancel to true if windows is shutting down.
 			// Doing so would prevent windows from shutting down or logging out.
-			if (!sessionEnding)
+			if (!_sessionEnding)
 			{
 				// initiate shutdown and cancel close if shutdown is not complete.  The applicationMgr will
 				// send the ExitApplication event when shutdown is complete and we can close then
@@ -543,7 +587,7 @@ namespace TestExecServer
 			// is trying to shutdown, restart, or logoff windows
 			if (msg.Msg == WM_QUERYENDSESSION)
 			{
-				sessionEnding = true;
+				_sessionEnding = true;
 				Application.Exit();
 			}
 
@@ -598,7 +642,7 @@ namespace TestExecServer
 			if (this.WindowState == FormWindowState.Minimized)
 			{
 				Hide();
-				notifyIcon.Visible = true;
+				_notifyIcon.Visible = true;
 			}
 		}
 
@@ -608,7 +652,20 @@ namespace TestExecServer
 		{
 			Show();
 			this.WindowState = FormWindowState.Normal;
-			notifyIcon.Visible = false;
+			_notifyIcon.Visible = false;
+		}
+
+		[SupportedOSPlatform("windows")]  // Added this to remove warning CA1416
+		private void WriteErrorToEventLog(string textToLog)
+		{
+			const string logSource = "TestStand gRPC Server";
+
+			if (!EventLog.SourceExists(logSource))
+			{
+				EventLog.CreateEventSource(logSource, "Application");
+			}
+
+			EventLog.WriteEntry(logSource, textToLog, EventLogEntryType.Error);
 		}
 	}
 }

@@ -3,7 +3,8 @@
 Note that this example depends on a nuget that contains the .proto files for the API and the client side assembly
 the protoc compiler generates for those .proto files. If you intend to make a non-c# client and need the .proto 
 files, you can download the nuget package, open it as a .zip file, and access the .proto files from the 
-ProtoFiles folder.
+folder ni/teststand/api/grpc/techpreview located under "content/ProtoFiles" in the nuget package.  Simply copy
+the "ni" folder to your project directory.
 
 To download the nuget package, navigate to www.nuget.org. 
 Search for NationalInstruments.TestStand.gRPC.Client and click the result link. Then, click the Download 

@@ -290,12 +290,15 @@ namespace ExampleClient
 				 _errorResultStatusConstant = _stepPropertiesClient.Get_ResultStatus_Error(new ConstantValueRequest()).ReturnValue;
 
 			// get stream of UIMessage events
-			var uiMessageEventStream = _engineClient.GetEvents_UIMessageEvent(new Engine_GetEvents_UIMessageEventRequest
+			var call = _engineClient.GetEvents_UIMessageEvent(new Engine_GetEvents_UIMessageEventRequest
 			{
 				Instance = _engine,
 				DiscardMultipleEventsWithinPeriod = 0.0,
-				ReplyTimeout = 20.0
-			}).ResponseStream;
+				ReplyTimeout = 20.0,
+				TimeoutCancelsEvents = true
+			});
+
+			var uiMessageEventStream = call.ResponseStream;
 
 			// read the message stream from a separate thread. Otherwise the asynchronous message reading loop would block whenever the thread in which it is established
 			// blocks in a synchronous call, including synchronous gRPC calls. Because some TestStand gRPC API calls can generate events that require replies before completing
@@ -310,7 +313,7 @@ namespace ExampleClient
 					await foreach (var uiMessageEvent in uiMessageEventStream.ReadAllAsync())
 					{
 
-						LogLine($"received msg id {uiMessageEvent.Msg.Id}  eventId: {uiMessageEvent.EventId}");
+						//LogLine($"received msg id {uiMessageEvent.Msg.Id}  eventId: {uiMessageEvent.EventId}");
 						var uiMessageCode = _uiMessageClient.Get_Event(new UIMessage_Get_EventRequest { Instance = uiMessageEvent.Msg }).ReturnValue;
 
 						var now = DateTime.Now;
@@ -389,7 +392,7 @@ namespace ExampleClient
 						_ = _engineClient.ReplyToEvent_UIMessageEventAsync(new Engine_ReplyToEvent_UIMessageEventRequest { EventId = uiMessageEvent.EventId });
 
 						var elapsed = DateTime.Now - now;
-						LogLine("UIMessage event: " + uiMessageCode.ToString() + ", Time = " + elapsed.TotalSeconds.ToString());
+						//LogLine("UIMessage event: " + uiMessageCode.ToString() + ", Time = " + elapsed.TotalSeconds.ToString());
 					}
 
 					LogLine("The UIMessage event stream exited without an error.");
@@ -399,6 +402,8 @@ namespace ExampleClient
 				{
 					LogLine("The UIMessage event stream exited with an error: " + ex.Message);
 				}
+
+				call.Dispose(); // cancels the call, in case we exited with an error
 			});
 		}
 
@@ -1815,8 +1820,7 @@ namespace ExampleClient
 
 		private ExecutionsInstance GetAllOpenExecutions()
         {
-			var applicationMgrReference = _engineClient.GetInternalOption(new Engine_GetInternalOptionRequest { Instance = _engine, Option = InternalOptions.InternalOptionApplicationManager }).Reference;
-			var applicationMgr = new ApplicationMgrInstance { Id = applicationMgrReference.Id };
+			var applicationMgr = new ApplicationMgrInstance { Id = "ApplicationMgr" };
 
 			return _applicationMgrClient.Get_Executions(new ApplicationMgr_Get_ExecutionsRequest { Instance = applicationMgr }).ReturnValue;
 		}
