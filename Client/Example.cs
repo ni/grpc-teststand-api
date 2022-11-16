@@ -285,7 +285,9 @@ namespace ExampleClient
 		private static string _errorResultStatusConstant;
 
 		private void HandleUIMessages()
-		{			
+		{
+			bool demoEventMessages = false;
+
 			if (String.IsNullOrEmpty(_errorResultStatusConstant))
 				 _errorResultStatusConstant = _stepPropertiesClient.Get_ResultStatus_Error(new ConstantValueRequest()).ReturnValue;
 
@@ -312,11 +314,13 @@ namespace ExampleClient
 				{
 					await foreach (var uiMessageEvent in uiMessageEventStream.ReadAllAsync())
 					{
+						var now = DateTime.Now;
 
-						//LogLine($"received msg id {uiMessageEvent.Msg.Id}  eventId: {uiMessageEvent.EventId}");
+						if (demoEventMessages)
+							LogLine($"received msg id {uiMessageEvent.Msg.Id}  eventId: {uiMessageEvent.EventId}");
+
 						var uiMessageCode = _uiMessageClient.Get_Event(new UIMessage_Get_EventRequest { Instance = uiMessageEvent.Msg }).ReturnValue;
 
-						var now = DateTime.Now;
 						switch (uiMessageCode)
 						{
 							case UIMessageCodes.UimsgEndExecution:
@@ -391,8 +395,11 @@ namespace ExampleClient
 
 						_ = _engineClient.ReplyToEvent_UIMessageEventAsync(new Engine_ReplyToEvent_UIMessageEventRequest { EventId = uiMessageEvent.EventId });
 
-						var elapsed = DateTime.Now - now;
-						//LogLine("UIMessage event: " + uiMessageCode.ToString() + ", Time = " + elapsed.TotalSeconds.ToString());
+						if (demoEventMessages)
+						{
+							var elapsed = DateTime.Now - now;
+							LogLine("UIMessage event: " + uiMessageCode.ToString() + ", Processing Time = " + elapsed.TotalSeconds.ToString());
+						}
 					}
 
 					LogLine("The UIMessage event stream exited without an error.");
