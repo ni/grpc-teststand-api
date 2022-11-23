@@ -18,7 +18,7 @@ The service and methods have intellisense documentation in C#. If you are not us
 of the InstanceLifetime Service and the corresponding documentation can be found in the
 instance_lifetime_api.proto file that is included with the other api proto files.
 
-#InstanceLifetime Service Methods
+# InstanceLifetime Service Methods
 You can explicitly release or specify the lifetime of specific objects by calling:
 Release(), SetLifespan(), and SetDefaultLifespan().
 
