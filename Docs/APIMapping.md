@@ -194,7 +194,7 @@ var internalOptionRequest = new EngineClass_SetInternalOptionRequest
 	}
 ```
 
-#Events
+# Events
 
 Each event maps to a registration method and a reply method. The registration method is named 
 GetEvents_[EventName]. This method returns a ResponseStream field. A client typically creates a loop
@@ -213,7 +213,7 @@ the .proto file that defines them.
 Refer to the HandleUIMessages() method in the Client\Example.cs file for an example of subscribing to
 and handling an event.
 
-#.proto files
+# .proto files
 
 The gRPC version of the TestStand API consists of multiple .proto files that contain different
 portions of the API. The files and their contents are as follows:
@@ -241,7 +241,7 @@ from a TestStand gRPC client.
 
 common_types_api.proto - Some common message types that are used by multiple .proto files.
 
-#Namespaces
+# Namespaces
 
 The C# namespaces of the gRPC APIs are similar to the namespaces of their corresponding local APIs. 
 You can find the namespace at the top of each .proto file. For example, 
