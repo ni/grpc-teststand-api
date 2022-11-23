@@ -22,7 +22,7 @@ then use the various controls to demonstrate invoking the TestStand API in the s
 To Do Items:
 
 - If the project is not finding its nuget dependency of NationalInstruments.TestStand.gRPC.Client (0.5.0-*),
-add https://api.nuget.org/v3/index.json as a package source,
+add https://api.nuget.org/v3/index.json as a nuget package source,
 
 - Use the TestStand API to implement your desired functionality
 
