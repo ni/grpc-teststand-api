@@ -514,7 +514,7 @@ namespace TestExecServer
 				// make the managers available as named grpc globals
 				ConnectionFactory.ServerGlobalScope.ToInstanceId(axApplicationMgr.GetOcx(), true, "ApplicationMgr");
 				ConnectionFactory.ServerGlobalScope.ToInstanceId(axSequenceFileViewMgr.GetOcx(), true, "SequenceFileViewMgr");
-				ConnectionFactory.ServerGlobalScope.ToInstanceId(axExecutionViewMgr.GetOcx(), true, "ExecutionFileViewMgr");
+				ConnectionFactory.ServerGlobalScope.ToInstanceId(axExecutionViewMgr.GetOcx(), true, "ExecutionViewMgr");
 				
 				axApplicationMgr.Start();   // start up the TestStand User Interface Components.
 			}

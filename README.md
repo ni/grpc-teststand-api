@@ -61,12 +61,6 @@ After running the sequence file on a server, you can optionally use the TestMoni
 
 ---
 
-## Known Issues and Limitations of the gRPC API
-
-- Events are not currently supported.
-
----
-
 
 ## Incompatibilities
 
@@ -82,5 +76,3 @@ After running the sequence file on a server, you can optionally use the TestMoni
 [Overview for gRPC on .NET](https://docs.microsoft.com/en-us/aspnet/core/grpc/?view=aspnetcore-5.0)
 
 [.NET Generic Host in ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host?view=aspnetcore-5.0)
-
-[Server Security Support](https://github.com/ni/grpc-device/wiki/Server-Security-Support)

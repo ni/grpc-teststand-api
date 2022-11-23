@@ -6,6 +6,9 @@ These mappings give a high level overview of how TestStand API objects, methods,
 - Properties are mapped to RPC calls with prepend *Get_* and *Set_* followed by the property name.
 - Input parameters are mapped to request messages.
 - Output parameters and return values are mapped to reply messages.
+- Events are mapped to server side streams of reply messages.
+- Different APIs are mapped to different .proto files.
+- Namespaces are mapped to corresponding Grpc namespaces.
 
 # API Objects
 The TestStand gRPC API exposes all TestStand API objects as gRPC services. Here is an example of how the `PropertyObject` is mapped to a gRPC .proto (Protobuf) file:
@@ -190,3 +193,92 @@ var internalOptionRequest = new EngineClass_SetInternalOptionRequest
 		Boolean = true
 	}
 ```
+
+#Events
+
+Each event maps to a registration method and a reply method. The registration method is named 
+GetEvents_[EventName]. This method returns a ResponseStream field. A client typically creates a loop
+that reads from the stream asynchronously, such that the loop does not block the client while it waits for
+the next item in the stream. Each new item read from the stream represents an event that
+occurred on the server. 
+
+When you register for an event, you pass options that determine whether the server
+waits for you to respond before allowing the event to complete. To respond, you call
+the corresponding ReplyToEvent_[EventName] method. If the event has output parameters, you can provide
+the output values to the server when you call ReplyToEvent_[EventName]. 
+
+Documentation for each pair of GetEvents_ and ReplyToEvent_ methods is provided in C# with intellisense and in
+the .proto file that defines them.
+
+Refer to the HandleUIMessages() method in the Client\Example.cs file for an example of subscribing to
+and handling an event.
+
+#.proto files
+
+The gRPC version of the TestStand API consists of multiple .proto files that contain different
+portions of the API. The files and their contents are as follows:
+
+NationalInstruments.TestStand.API.proto - The core TestStand API, including interfaces/services such
+as Engine, SequenceFile, and Step.
+
+NationalInstruments.TestStand.AdapterAPI.proto - Interfaces for configuring module adapters 
+and module calls.
+
+TSSync.proto - Interfaces for Locks, Queues, Notifications, Rendezvous, and other TestStand 
+synchronization objects.
+
+NationalInstruments.TestStand.UI.proto - The TestStand UI controls, including visible controls such
+as the SequenceView and ExpressionEdit, and non-visible controls such as the ApplicationMgr,
+SequenceFileViewMgr, and ExecutionViewMgr.
+
+NationalInstruments.TestStand.UI.Support.proto - Interfaces for connecting functionality to 
+the TestStand UI controls, including SelectedSteps, Command, and CommandConnection.
+
+NationalInstruments.TestStand.SequenceAnalyzer.proto - Interfaces for analyzing sequence files.
+
+instance_lifetime_api.proto - An interface for controlling the lifetime of object instance handles
+from a TestStand gRPC client.
+
+common_types_api.proto - Some common message types that are used by multiple .proto files.
+
+#Namespaces
+
+The C# namespaces of the gRPC APIs are similar to the namespaces of their corresponding local APIs. 
+You can find the namespace at the top of each .proto file. For example, 
+NationalInstruments.TestStand.API.proto contains the following statement:
+
+	option csharp_namespace = "NationalInstruments.TestStand.API.Grpc";
+
+Here is a list with the gRPC namespace and the original local API namespace for each .protofile:
+
+NationalInstruments.TestStand.API.proto:
+	gRPC:		NationalInstruments.TestStand.API.Grpc
+	Local:		NationalInstruments.TestStand.Interop.API
+
+NationalInstruments.TestStand.AdapterAPI.proto:
+	gRPC:		NationalInstruments.TestStand.AdapterAPI.Grpc		
+	Local:	 	NationalInstruments.TestStand.Interop.AdapterAPI
+
+TSSync.proto:
+	gRPC:		TSSync.Grpc
+	Local:		TSSyncLib
+
+NationalInstruments.TestStand.UI.proto:
+	gRPC:		NationalInstruments.TestStand.UI.Grpc
+	Local:	 	NationalInstruments.TestStand.Interop.UI
+
+NationalInstruments.TestStand.UI.Support.proto:
+	gRPC:		NationalInstruments.TestStand.UI.Support.Grpc
+	Local:	 	NationalInstruments.TestStand.Interop.UI.Support
+
+NationalInstruments.TestStand.SequenceAnalyzer.proto:
+	gRPC: 		NationalInstruments.TestStand.SequenceAnalyzer.Grpc
+	Local:		NationalInstruments.TestStand.Interop.SequenceAnalyzer
+
+instance_lifetime_api.proto:
+	gRPC: 		NationalInstruments.TestStand.Grpc.Net.Client.OO
+	Local: 		NationalInstruments.TestStand.Grpc.Net.Server.OO
+		
+common_types_api.proto - Common message types that are used by multiple .proto files.
+	gRPC: 		NationalInstruments.TestStand.API.Grpc
+	Local:		Not Applicable
