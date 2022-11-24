@@ -245,40 +245,40 @@ common_types_api.proto - Some common message types that are used by multiple .pr
 
 The C# namespaces of the gRPC APIs are similar to the namespaces of their corresponding local APIs. 
 You can find the namespace at the top of each .proto file. For example, 
-NationalInstruments.TestStand.API.proto contains the following statement:
+NationalInstruments.TestStand.API.proto contains the following statement:  
 
 	option csharp_namespace = "NationalInstruments.TestStand.API.Grpc";
 
-Here is a list with the gRPC namespace and the original local API namespace for each .protofile:
+Here is a list with the gRPC namespace and the original local API namespace for each .protofile:  
 
-NationalInstruments.TestStand.API.proto:
-	gRPC:		NationalInstruments.TestStand.API.Grpc
-	Local:		NationalInstruments.TestStand.Interop.API
+NationalInstruments.TestStand.API.proto:  
+	gRPC:		NationalInstruments.TestStand.API.Grpc  
+	Local:		NationalInstruments.TestStand.Interop.API  
 
-NationalInstruments.TestStand.AdapterAPI.proto:
-	gRPC:		NationalInstruments.TestStand.AdapterAPI.Grpc		
-	Local:	 	NationalInstruments.TestStand.Interop.AdapterAPI
+NationalInstruments.TestStand.AdapterAPI.proto:  
+	gRPC:		NationalInstruments.TestStand.AdapterAPI.Grpc  	
+	Local:	 	NationalInstruments.TestStand.Interop.AdapterAPI  
 
-TSSync.proto:
-	gRPC:		TSSync.Grpc
-	Local:		TSSyncLib
+TSSync.proto:  
+	gRPC:		TSSync.Grpc  
+	Local:		TSSyncLib  
 
-NationalInstruments.TestStand.UI.proto:
-	gRPC:		NationalInstruments.TestStand.UI.Grpc
-	Local:	 	NationalInstruments.TestStand.Interop.UI
+NationalInstruments.TestStand.UI.proto:  
+	gRPC:		NationalInstruments.TestStand.UI.Grpc  
+	Local:	 	NationalInstruments.TestStand.Interop.UI  
 
-NationalInstruments.TestStand.UI.Support.proto:
-	gRPC:		NationalInstruments.TestStand.UI.Support.Grpc
-	Local:	 	NationalInstruments.TestStand.Interop.UI.Support
+NationalInstruments.TestStand.UI.Support.proto:  
+	gRPC:		NationalInstruments.TestStand.UI.Support.Grpc  
+	Local:	 	NationalInstruments.TestStand.Interop.UI.Support  
 
-NationalInstruments.TestStand.SequenceAnalyzer.proto:
-	gRPC: 		NationalInstruments.TestStand.SequenceAnalyzer.Grpc
-	Local:		NationalInstruments.TestStand.Interop.SequenceAnalyzer
+NationalInstruments.TestStand.SequenceAnalyzer.proto:  
+	gRPC: 		NationalInstruments.TestStand.SequenceAnalyzer.Grpc  
+	Local:		NationalInstruments.TestStand.Interop.SequenceAnalyzer  
 
-instance_lifetime_api.proto:
-	gRPC: 		NationalInstruments.TestStand.Grpc.Net.Client.OO
-	Local: 		NationalInstruments.TestStand.Grpc.Net.Server.OO
+instance_lifetime_api.proto:  
+	gRPC: 		NationalInstruments.TestStand.Grpc.Net.Client.OO  
+	Local: 		NationalInstruments.TestStand.Grpc.Net.Server.OO  
 		
-common_types_api.proto - Common message types that are used by multiple .proto files.
-	gRPC: 		NationalInstruments.TestStand.API.Grpc
-	Local:		Not Applicable
+common_types_api.proto - Common message types that are used by multiple .proto files.  
+	gRPC: 		NationalInstruments.TestStand.API.Grpc  
+	Local:		Not Applicable  
