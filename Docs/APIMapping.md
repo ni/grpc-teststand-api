@@ -251,34 +251,34 @@ NationalInstruments.TestStand.API.proto contains the following statement:
 
 Here is a list with the gRPC namespace and the original local API namespace for each .protofile:  
 
-NationalInstruments.TestStand.API.proto:  
+NationalInstruments.TestStand.API.proto  
 	gRPC:		NationalInstruments.TestStand.API.Grpc  
 	Local:		NationalInstruments.TestStand.Interop.API  
 
-NationalInstruments.TestStand.AdapterAPI.proto:  
-	gRPC:		NationalInstruments.TestStand.AdapterAPI.Grpc  	
+NationalInstruments.TestStand.AdapterAPI.proto  
+	gRPC:		NationalInstruments.TestStand.AdapterAPI.Grpc  
 	Local:	 	NationalInstruments.TestStand.Interop.AdapterAPI  
 
 TSSync.proto:  
 	gRPC:		TSSync.Grpc  
 	Local:		TSSyncLib  
 
-NationalInstruments.TestStand.UI.proto:  
+NationalInstruments.TestStand.UI.proto  
 	gRPC:		NationalInstruments.TestStand.UI.Grpc  
 	Local:	 	NationalInstruments.TestStand.Interop.UI  
 
-NationalInstruments.TestStand.UI.Support.proto:  
+NationalInstruments.TestStand.UI.Support.proto  
 	gRPC:		NationalInstruments.TestStand.UI.Support.Grpc  
 	Local:	 	NationalInstruments.TestStand.Interop.UI.Support  
 
-NationalInstruments.TestStand.SequenceAnalyzer.proto:  
+NationalInstruments.TestStand.SequenceAnalyzer.proto  
 	gRPC: 		NationalInstruments.TestStand.SequenceAnalyzer.Grpc  
 	Local:		NationalInstruments.TestStand.Interop.SequenceAnalyzer  
 
-instance_lifetime_api.proto:  
+instance_lifetime_api.proto  
 	gRPC: 		NationalInstruments.TestStand.Grpc.Net.Client.OO  
 	Local: 		NationalInstruments.TestStand.Grpc.Net.Server.OO  
 		
-common_types_api.proto - Common message types that are used by multiple .proto files.  
+common_types_api.proto   
 	gRPC: 		NationalInstruments.TestStand.API.Grpc  
 	Local:		Not Applicable  
