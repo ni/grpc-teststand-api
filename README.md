@@ -76,3 +76,5 @@ After running the sequence file on a server, you can optionally use the TestMoni
 [Overview for gRPC on .NET](https://docs.microsoft.com/en-us/aspnet/core/grpc/?view=aspnetcore-5.0)
 
 [.NET Generic Host in ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host?view=aspnetcore-5.0)
+
+[Docs Folder](https://github.com/ni/grpc-teststand-api/tree/'main'/Docs)
