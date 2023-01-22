@@ -1,6 +1,6 @@
 ﻿
-namespace ExampleClient
-{
+namespace ExampleClient;
+
 	partial class Example
 	{
 		/// <summary>
@@ -14,14 +14,14 @@ namespace ExampleClient
 		/// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
 		protected override void Dispose(bool disposing)
 		{
-            if (disposing)
-            {
-                components?.Dispose();
-                components = null;
+        if (disposing)
+        {
+            components?.Dispose();
+            components = null;
 
-                _numTestSocketsNumericUpDownToolTip?.Dispose();
-                _numTestSocketsNumericUpDownToolTip = null;
-            }
+            _numTestSocketsNumericUpDownToolTip?.Dispose();
+            _numTestSocketsNumericUpDownToolTip = null;
+        }
 			base.Dispose(disposing);
 		}
 
@@ -135,16 +135,16 @@ namespace ExampleClient
 			this._processModelComboBox.FormattingEnabled = true;
 			this._processModelComboBox.ItemHeight = 15;
 			this._processModelComboBox.Items.AddRange(new object[] {
-            "Use Station Model",
-            "Sequential",
-            "Batch",
-            "Parallel",
-            "None"});
+        "Use Station Model",
+        "Sequential",
+        "Batch",
+        "Parallel",
+        "None"});
 			this._processModelComboBox.Location = new System.Drawing.Point(173, 160);
 			this._processModelComboBox.Name = "_processModelComboBox";
 			this._processModelComboBox.Size = new System.Drawing.Size(174, 23);
 			this._processModelComboBox.TabIndex = 10;
-            this._processModelComboBox.SelectedIndexChanged += OnProcessModelComboBoxSelectedIndexChanged;
+        this._processModelComboBox.SelectedIndexChanged += OnProcessModelComboBoxSelectedIndexChanged;
 			// 
 			// _serverAddressTextBox
 			// 
@@ -192,8 +192,8 @@ namespace ExampleClient
 			this._entryPointComboBox.FormattingEnabled = true;
 			this._entryPointComboBox.ItemHeight = 15;
 			this._entryPointComboBox.Items.AddRange(new object[] {
-            "Single Pass",
-            "Test UUTs"});
+        "Single Pass",
+        "Test UUTs"});
 			this._entryPointComboBox.Location = new System.Drawing.Point(173, 236);
 			this._entryPointComboBox.Name = "_entryPointComboBox";
 			this._entryPointComboBox.Size = new System.Drawing.Size(174, 23);
@@ -223,12 +223,12 @@ namespace ExampleClient
 			this._sequenceFileNameComboBox.FormattingEnabled = true;
 			this._sequenceFileNameComboBox.ItemHeight = 15;
 			this._sequenceFileNameComboBox.Items.AddRange(new object[] {
-            "test.seq",
-            "LoopForever.seq",
-            "TraceExecution.seq",
-            "LoadError.seq",
-            "RunTimeError.seq",
-            "StepResults.seq"});
+        "test.seq",
+        "LoopForever.seq",
+        "TraceExecution.seq",
+        "LoadError.seq",
+        "RunTimeError.seq",
+        "StepResults.seq"});
 			this._sequenceFileNameComboBox.Location = new System.Drawing.Point(173, 122);
 			this._sequenceFileNameComboBox.Name = "_sequenceFileNameComboBox";
 			this._sequenceFileNameComboBox.Size = new System.Drawing.Size(174, 23);
@@ -327,9 +327,9 @@ namespace ExampleClient
 			// 
 			this._stationGlobalsListView.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
 			this._stationGlobalsListView.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this._nameColumn,
-            this._valueColumn,
-            this._typeColumn});
+        this._nameColumn,
+        this._valueColumn,
+        this._typeColumn});
 			this._stationGlobalsListView.Enabled = false;
 			this._stationGlobalsListView.FullRowSelect = true;
 			this._stationGlobalsListView.GridLines = true;
@@ -426,8 +426,8 @@ namespace ExampleClient
 			this._booleanValueComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
 			this._booleanValueComboBox.FormattingEnabled = true;
 			this._booleanValueComboBox.Items.AddRange(new object[] {
-            "False",
-            "True"});
+        "False",
+        "True"});
 			this._booleanValueComboBox.Location = new System.Drawing.Point(173, 513);
 			this._booleanValueComboBox.Name = "_booleanValueComboBox";
 			this._booleanValueComboBox.Size = new System.Drawing.Size(174, 23);
@@ -723,9 +723,9 @@ namespace ExampleClient
 
 		}
 
-        #endregion
+    #endregion
 
-        private System.Windows.Forms.RichTextBox _logTextBox;
+    private System.Windows.Forms.RichTextBox _logTextBox;
 		private System.Windows.Forms.Label _logLabel;
 		private System.Windows.Forms.Button _runSequenceFileButton;
 		private System.Windows.Forms.ComboBox _processModelComboBox;
@@ -741,43 +741,42 @@ namespace ExampleClient
 		private System.Windows.Forms.Button _resumeButton;
 		private System.Windows.Forms.Button _clearOutputButton;
 		private System.Windows.Forms.Timer _updateExecutionOptionsStateTimer;
-        private System.Windows.Forms.Timer _serverHeartbeatTimer;
-        private System.Windows.Forms.TextBox _suspendedAtStepTextBox;
+    private System.Windows.Forms.Timer _serverHeartbeatTimer;
+    private System.Windows.Forms.TextBox _suspendedAtStepTextBox;
 		private System.Windows.Forms.Label _suspendedAtStepLabel;
-        private System.Windows.Forms.ListView _stationGlobalsListView;
-        private System.Windows.Forms.ColumnHeader _nameColumn;
-        private System.Windows.Forms.ColumnHeader _valueColumn;
-        private System.Windows.Forms.Label _selectedItemValue;
-        private System.Windows.Forms.TextBox _valueTextBox;
-        private System.Windows.Forms.Button _addGlobalButton;
-        private System.Windows.Forms.Button _deleteGlobalButton;
-        private System.Windows.Forms.ColumnHeader _typeColumn;
-        private System.Windows.Forms.ComboBox _booleanValueComboBox;
-        private System.Windows.Forms.Button _commitGlobalsToDiskButton;
-        private System.Windows.Forms.Label _activeProcessModelLabel;
-        private System.Windows.Forms.ComboBox _stationModelComboBox;
-        private System.Windows.Forms.Label _numberOfTestSocketsLabel;
-        private System.Windows.Forms.NumericUpDown _numTestSocketsNumericUpDown;
-        private System.Windows.Forms.RichTextBox _executionTraceMessagesTextBox;
-        private System.Windows.Forms.Button _clearExecutionTraceMessagesButton;
-        private System.Windows.Forms.Label _executionTraceMessagesLabel;
+    private System.Windows.Forms.ListView _stationGlobalsListView;
+    private System.Windows.Forms.ColumnHeader _nameColumn;
+    private System.Windows.Forms.ColumnHeader _valueColumn;
+    private System.Windows.Forms.Label _selectedItemValue;
+    private System.Windows.Forms.TextBox _valueTextBox;
+    private System.Windows.Forms.Button _addGlobalButton;
+    private System.Windows.Forms.Button _deleteGlobalButton;
+    private System.Windows.Forms.ColumnHeader _typeColumn;
+    private System.Windows.Forms.ComboBox _booleanValueComboBox;
+    private System.Windows.Forms.Button _commitGlobalsToDiskButton;
+    private System.Windows.Forms.Label _activeProcessModelLabel;
+    private System.Windows.Forms.ComboBox _stationModelComboBox;
+    private System.Windows.Forms.Label _numberOfTestSocketsLabel;
+    private System.Windows.Forms.NumericUpDown _numTestSocketsNumericUpDown;
+    private System.Windows.Forms.RichTextBox _executionTraceMessagesTextBox;
+    private System.Windows.Forms.Button _clearExecutionTraceMessagesButton;
+    private System.Windows.Forms.Label _executionTraceMessagesLabel;
 		private System.Windows.Forms.Button _listThreadsButton;
 		private System.Windows.Forms.Button _terminateButton;
-        private System.Windows.Forms.CheckBox _enableTracingCheckBox;
-        private System.Windows.Forms.Label _connectionStatusLabel;
-        private System.Windows.Forms.PictureBox _connectionStatusPictureBox;
-        private System.Windows.Forms.Label _connectionStatusDescriptionLabel;
-        private System.Windows.Forms.PictureBox _executionStatePictureBox;
-        private System.Windows.Forms.Label _executionStateDescriptionLabel;
-        private System.Windows.Forms.Label _remoteStationLabel;
-        private System.Windows.Forms.Label _stationGlobalsSectionLabel;
-        private Line _verticalLine;
-        private System.Windows.Forms.Label _outputLabel;
-        private Line _horizontalLine;
-        private System.Windows.Forms.Panel _serverAddressPanel;
-        private System.Windows.Forms.PictureBox _connectionTypePictureBox;
-        private System.Windows.Forms.Panel _logControlPanel;
-        private System.Windows.Forms.Panel _executionTraceMessagesControlPanel;
-    }
+    private System.Windows.Forms.CheckBox _enableTracingCheckBox;
+    private System.Windows.Forms.Label _connectionStatusLabel;
+    private System.Windows.Forms.PictureBox _connectionStatusPictureBox;
+    private System.Windows.Forms.Label _connectionStatusDescriptionLabel;
+    private System.Windows.Forms.PictureBox _executionStatePictureBox;
+    private System.Windows.Forms.Label _executionStateDescriptionLabel;
+    private System.Windows.Forms.Label _remoteStationLabel;
+    private System.Windows.Forms.Label _stationGlobalsSectionLabel;
+    private Line _verticalLine;
+    private System.Windows.Forms.Label _outputLabel;
+    private Line _horizontalLine;
+    private System.Windows.Forms.Panel _serverAddressPanel;
+    private System.Windows.Forms.PictureBox _connectionTypePictureBox;
+    private System.Windows.Forms.Panel _logControlPanel;
+    private System.Windows.Forms.Panel _executionTraceMessagesControlPanel;
 }
 

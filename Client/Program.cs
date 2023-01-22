@@ -4,8 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace ExampleClient
-{
+namespace ExampleClient;
+
 	static class Program
 	{
 		/// <summary>
@@ -33,4 +33,3 @@ namespace ExampleClient
 			return args.Length == 1 ? args[0] : null;
 		}
 	}
-}

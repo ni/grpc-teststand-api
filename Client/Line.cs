@@ -3,21 +3,21 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace ExampleClient
+namespace ExampleClient;
+
+/// <summary>
+/// Draws a vertical or horizontal line
+/// </summary>
+public class Line : Control
 {
-    /// <summary>
-    /// Draws a vertical or horizontal line
-    /// </summary>
-    public class Line : Control
+    private int _thickness = 1;
+    private bool _isVertical = false;
+
+    protected override void OnPaint(PaintEventArgs e)
     {
-        private int _thickness = 1;
-        private bool _isVertical = false;
+        base.OnPaint(e);
 
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            base.OnPaint(e);
-
-            Color lineForeColor = Color.FromArgb(203, 205, 205);
+        Color lineForeColor = Color.FromArgb(203, 205, 205);
 
 			using var pen = new Pen(lineForeColor, _thickness);
 			if (_isVertical)
@@ -30,32 +30,31 @@ namespace ExampleClient
 			}
 		}
 
-        protected override void OnPaddingChanged(EventArgs e)
+    protected override void OnPaddingChanged(EventArgs e)
+    {
+        base.OnPaddingChanged(e);
+        Invalidate();
+    }
+
+    public bool IsVertical
+    {
+        get => _isVertical;
+        set
         {
-            base.OnPaddingChanged(e);
+            _isVertical = value;
             Invalidate();
         }
+    }
 
-        public bool IsVertical
+    public int Thickness
+    {
+        get => _thickness;
+        set
         {
-            get => _isVertical;
-            set
-            {
-                _isVertical = value;
-                Invalidate();
-            }
-        }
+            Debug.Assert(_thickness > 0);
 
-        public int Thickness
-        {
-            get => _thickness;
-            set
-            {
-                Debug.Assert(_thickness > 0);
-
-                _thickness = value;
-                Invalidate();
-            }
+            _thickness = value;
+            Invalidate();
         }
     }
 }

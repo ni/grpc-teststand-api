@@ -7,13 +7,13 @@ using Grpc.Net.Client;
 using NationalInstruments.TestStand.Grpc.Net.Client.OO;
 using static System.FormattableString;
 
-namespace ExampleClient
+namespace ExampleClient;
+
+internal class CreateChannelHelper : IDisposable
 {
-    internal class CreateChannelHelper : IDisposable
-    {
 		private X509Certificate2 _clientCertificate;
 		private X509Certificate2 _serverCertificate;
-        private bool _disposedValue;
+    private bool _disposedValue;
 
 		public GrpcChannel OpenChannel(string serverAddress, ClientOptions clientOptions, out bool isSecured, out string connectionErrors)
 		{
@@ -250,4 +250,3 @@ namespace ExampleClient
 			GC.SuppressFinalize(this);
 		}
 	}
-}
