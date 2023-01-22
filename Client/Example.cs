@@ -19,16 +19,16 @@ using NationalInstruments.TestStand.UI.Grpc;
 using static System.FormattableString;
 using static ExampleClient.Win32Interop;
 
-namespace ExampleClient
-{
+namespace ExampleClient;
+
 	public partial class Example : Form
 	{
 		public enum ExecutionAction
-        {
+    {
 			Break,
 			Resume,
 			Terminate
-        }
+    }
 
 		const string SequentialModelFilename = "SequentialModel.seq";
 		const string ModelOptionsFileSectionName = "ModelOptions";
@@ -54,16 +54,16 @@ namespace ExampleClient
 		const string SecureConnection = "SecureConnection";
 		const string NotSecureConnection = "NotSecureConnection";
 
-        const int ColorBoxWidth = 3;
-        // For a step result, we need to add a color box before the status. To do this,
-        // we need to add the space to the result to draw the color box. ColorBoxSpace
-        // defines the space to insert. We nee to add one character to ColorBoxWidth to
-        // allow one space between the box and the actual result text.
-        readonly string ColorBoxSpace = string.Format("{0," + (ColorBoxWidth + 1) + "}", "");
+    const int ColorBoxWidth = 3;
+    // For a step result, we need to add a color box before the status. To do this,
+    // we need to add the space to the result to draw the color box. ColorBoxSpace
+    // defines the space to insert. We nee to add one character to ColorBoxWidth to
+    // allow one space between the box and the actual result text.
+    readonly string ColorBoxSpace = string.Format("{0," + (ColorBoxWidth + 1) + "}", "");
 
-        const int StatusLength = 7;
+    const int StatusLength = 7;
 		const int IndentOffsetForOneLevel = 4;
-        readonly string IndentSpace = string.Format("{0," + IndentOffsetForOneLevel + "}", "");
+    readonly string IndentSpace = string.Format("{0," + IndentOffsetForOneLevel + "}", "");
 
 		private readonly object _dataLock = new();
 		private int _busyCount = 0;
@@ -146,17 +146,17 @@ namespace ExampleClient
 
 		private void SetMonospacedFontInTraceAndLogControls()
 		{
-            // These fonts are documented here: https://docs.microsoft.com/en-us/typography/font-list/
-            const string PreferredMonospacedFontName = "Lucida Sans Typewriter";
+        // These fonts are documented here: https://docs.microsoft.com/en-us/typography/font-list/
+        const string PreferredMonospacedFontName = "Lucida Sans Typewriter";
 			const string BackupMonospacedFontName = "Courier New";
 
-            // Since "Lucida Sans Typewriter" is not installed by default in Windows,
-            // we need to check if it is installed before trying to use it. If not, we
-            // need to use the backup font "Courier New" which is installed by default.
-            string fontToUse = BackupMonospacedFontName;
-            var installedFontCollection = new InstalledFontCollection();
+        // Since "Lucida Sans Typewriter" is not installed by default in Windows,
+        // we need to check if it is installed before trying to use it. If not, we
+        // need to use the backup font "Courier New" which is installed by default.
+        string fontToUse = BackupMonospacedFontName;
+        var installedFontCollection = new InstalledFontCollection();
 
-            foreach (FontFamily family in installedFontCollection.Families)
+        foreach (FontFamily family in installedFontCollection.Families)
 			{
 				if (family.Name == PreferredMonospacedFontName)
 				{
@@ -167,9 +167,9 @@ namespace ExampleClient
 
 			_logTextBox.Font = new Font(fontToUse, Font.Size);
 			_executionTraceMessagesTextBox.Font = new Font(fontToUse, Font.Size);
-        }
+    }
 
-        private void SetConnectionStatus(bool isConnected)
+    private void SetConnectionStatus(bool isConnected)
 		{
 			// Control values need to be set in the UI thread. Also, running in the
 			// UI thread, removes the need to add a lock when updating _isConnected.
@@ -180,7 +180,7 @@ namespace ExampleClient
 		}
 
 		private void SetConnectionStatusOnUIThread(bool isConnected)
-        {
+    {
 			Debug.Assert(!_connectionStatusDescriptionLabel.InvokeRequired);
 
 			if (_isConnected != isConnected)
@@ -256,7 +256,7 @@ namespace ExampleClient
 					SetConnectionStatus(true);
 				}
 				else
-                {
+            {
 					LogLine(connectionErrors);
 					SetConnectionStatus(false);
 				}
@@ -492,12 +492,12 @@ namespace ExampleClient
 
 			_numTestSocketsNumericUpDown.Value = GetMultipleUUTSettingsNumberOfTestSocketsOption();
 			if (_numTestSocketsNumericUpDown.Value == 0)
-            {
+        {
 				_numTestSocketsNumericUpDown.Enabled = false;
 
 				string tooltip = "This option is not available because the model options file is not found on the server.\n" +
-                    "Change a model option on the server to create the file.\n" +
-                    "Reconnect to the server to enable this option when using Batch and Parallel models.";
+                "Change a model option on the server to create the file.\n" +
+                "Reconnect to the server to enable this option when using Batch and Parallel models.";
 				_numTestSocketsNumericUpDownToolTip = new ToolTipEx(this, _numTestSocketsNumericUpDown, tooltip);
 			}
 		}
@@ -608,36 +608,36 @@ namespace ExampleClient
 					});
 			}
 			catch (RpcException rpcException)
-            {
+        {
 				TSError errorCode = GetTSErrorCode(rpcException, out _);
 				if (errorCode == TSError.TsErrFileWasNotFound || errorCode == TSError.TsErrUnableToOpenFile)
-                {
+            {
 					// File does not exist on the server. Return a null object to let the caller know we
 					// cannot get the model options.
 					modelOptions = null;
-                }
+            }
 				else
-                {
+            {
 					throw;
-                }
+            }
 			}
 
 			return modelOptions;
 		}
 
 		private TSError GetTSErrorCode(RpcException rpcException, out string description)
-        {
+    {
 			description = null;
 
 			string errorCodeString = rpcException.Trailers.GetValue("tserrorcode");
 			if (!string.IsNullOrEmpty(errorCodeString))
-            {
+        {
 				if (int.TryParse(errorCodeString, out int errorCode))
-                {
+            {
 					description = _engineClient.GetErrorString(new Engine_GetErrorStringRequest { Instance = _engine, ErrorCode = (TSError)errorCode }).ErrorString;
 					return (TSError)errorCode;
-                }
             }
+        }
 
 			return TSError.TsErrNoError;
 		}
@@ -658,7 +658,7 @@ namespace ExampleClient
 		}
 
 		private void RefreshStationGlobals()
-        {
+    {
 			_stationGlobalsListView.BeginUpdate();
 			_stationGlobalsListView.Items.Clear();
 
@@ -714,7 +714,7 @@ namespace ExampleClient
 
 			_stationGlobalsListView.Enabled = true;
 			_addGlobalButton.Enabled = true;
-        }
+    }
 
 		private void OnConnectButtonClick(object sender, EventArgs e)
 		{			
@@ -741,8 +741,8 @@ namespace ExampleClient
 			{
 				ReportException(exception);
 			}
-            finally
-            {
+        finally
+        {
 				if (logAction)
 				{
 					LogBold("Completed: ");
@@ -837,9 +837,9 @@ namespace ExampleClient
 
 			}
 			else
-            {
+        {
 				usingModel = string.Compare(selectedModel, "None", StringComparison.OrdinalIgnoreCase) != 0;
-            }
+        }
 
 			_activeProcessModelLabel.Enabled = usingStationModel;
 			_stationModelComboBox.Enabled = usingStationModel;
@@ -872,9 +872,9 @@ namespace ExampleClient
 
 					// Don't run sequence if connection fails
 					if (!_isConnected)
-                    {
+                {
 						return;
-                    }
+                }
 
 					EnableApplicationDirectorySearchPath(); // the test.seq file is next to the example server executable
 
@@ -893,9 +893,9 @@ namespace ExampleClient
 						processModel = GetSelectedProcessModel(out string modelName);
 						string sequenceName = GetSelectedSequenceName(processModel);
 
-                        // The process models store the step results in a local variable called "ModelData". We need to get a 
-                        // reference to ModelData to keep the local alive so we can get the step results after the execution ends.
-                        PropertyObjectInstance modelData = await RunSequenceFileAsync(sequenceFile, sequenceName, processModel, modelName);
+                    // The process models store the step results in a local variable called "ModelData". We need to get a 
+                    // reference to ModelData to keep the local alive so we can get the step results after the execution ends.
+                    PropertyObjectInstance modelData = await RunSequenceFileAsync(sequenceFile, sequenceName, processModel, modelName);
 
 						var resultStatus = _executionClient.Get_ResultStatus(new Execution_Get_ResultStatusRequest { Instance = _activeExecution }).ReturnValue;
 						SetExecutionStatus(resultStatus);
@@ -1008,7 +1008,7 @@ namespace ExampleClient
 				}
 			}
 			catch (RpcException rpcException)
-            {
+        {
 				TSError errorCode = GetTSErrorCode(rpcException, out string description);
 				if (errorCode != TSError.TsErrNoError)
 				{
@@ -1021,7 +1021,7 @@ namespace ExampleClient
 				}
 
 				throw;
-            }
+        }
 
 			PropertyObjectInstance modelData = GetProcessModelModelData(_activeExecution, modelName);
 
@@ -1049,11 +1049,11 @@ namespace ExampleClient
 		}
 
 		private PropertyObjectInstance GetProcessModelModelData(ExecutionInstance execution, string modelName)
-        {
+    {
 			if (string.IsNullOrEmpty(modelName) || string.Compare(modelName, "None", StringComparison.OrdinalIgnoreCase) == 0)
-            {
+        {
 				return null;
-            }
+        }
 
 			// ModelData is a local variable in the root context.
 			ThreadInstance thread = _executionClient.GetThread(new Execution_GetThreadRequest { Instance = execution, Index = 0 }).ReturnValue;
@@ -1069,7 +1069,7 @@ namespace ExampleClient
 			}).ReturnValue;
 
 			return modelData;
-        }
+    }
 
 		private void LogExecutionResults(string resultStatus, SequenceFileInstance processModel, string modelName, PropertyObjectInstance modelData)
 		{
@@ -1152,7 +1152,7 @@ namespace ExampleClient
 		}
 
 		private int DisplayResultsForBatchOrParallelModelRuns(PropertyObjectInstance modelData, string modelName)
-        {
+    {
 			int numberOfResults = 0;
 
 			Debug.Assert(modelData != null);
@@ -1166,8 +1166,8 @@ namespace ExampleClient
 
 			LogLine(Invariant($"Results for '{_sequenceFileNameComboBox.Text}' using '{modelName}: {entryPointName}'"));
 
-            // The results are under ModelData.TestSockets.
-            PropertyObjectInstance testSockets = _propertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
+        // The results are under ModelData.TestSockets.
+        PropertyObjectInstance testSockets = _propertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
 			{
 				Instance = modelData,
 				LookupString = "TestSockets",
@@ -1206,12 +1206,12 @@ namespace ExampleClient
 		}
 
 		private static bool IsSequentialModelName(string processModelName)
-        {
+    {
 			return string.Compare(processModelName, SequentialModelFilename, StringComparison.OrdinalIgnoreCase) == 0;
-        }
+    }
 
 		private void SetExecutionStatus(string executionStatus)
-        {
+    {
 			if (executionStatus == NotExecutedSequenceFile)
 			{
 				_executionStatePictureBox.Image = null;
@@ -1329,10 +1329,10 @@ namespace ExampleClient
 		{
 			// Add some space between the lines in the log and trace messages text.
 			// The space will make the lines more readable.
-            SetLineSpacing(_logTextBox);
+        SetLineSpacing(_logTextBox);
 			SetLineSpacing(_executionTraceMessagesTextBox);
 
-            _processModelComboBox.SelectedIndex = 0;
+        _processModelComboBox.SelectedIndex = 0;
 			_entryPointComboBox.SelectedIndex = 0;
 			_sequenceFileNameComboBox.SelectedIndex = 0;
 		}
@@ -1499,11 +1499,11 @@ namespace ExampleClient
 
 		private void OnUpdateExecutionOptionsStateTimerTick(object sender, EventArgs e)
 		{
-            _ = TryActionAsync(async () => await UpdateExecutionOptionsStateAsync(), null);
+        _ = TryActionAsync(async () => await UpdateExecutionOptionsStateAsync(), null);
 		}
 
 		private void OnServerHeartbeatTimerTick(object sender, EventArgs e)
-        {
+    {
 			// To check the connection to the server, we need to do a simple-non-updating Engine call. If the call
 			// fails with the status code set to Unavailable, we know the connection to the server has been lost.
 			if (_isConnected)
@@ -1533,7 +1533,7 @@ namespace ExampleClient
 			bool canEditValue = false;
 
 			if (_stationGlobalsListView.SelectedIndices.Count > 0)
-            {
+        {
 				_deleteGlobalButton.Enabled = true;
 				_booleanValueComboBox.Visible = false;
 				_valueTextBox.Visible = true;
@@ -1551,7 +1551,7 @@ namespace ExampleClient
 				}
 				// Else, show the combobox and set it to the boolean property value
 				else if (typeString == "Boolean")
-                {
+            {
 					_booleanValueComboBox.Visible = true;
 					_valueTextBox.Visible = false;
 					_booleanValueComboBox.SelectedIndex = selectedItem.SubItems[1].Text == "True" ? 1 : 0;
@@ -1560,7 +1560,7 @@ namespace ExampleClient
 			}
 			
 			if (!canEditValue)
-            {
+        {
 				_deleteGlobalButton.Enabled = false;
 				_valueTextBox.Text = string.Empty;
 				_valueTextBox.Enabled = false;
@@ -1587,7 +1587,7 @@ namespace ExampleClient
 		}
 
 		private void OnAddStationGlobalClick(object sender, EventArgs e)
-        {
+    {
 			PropertyObjectInstance stationGlobals = _engineClient.Get_Globals(new Engine_Get_GlobalsRequest { Instance = _engine }).ReturnValue;
 			int numberOfGlobals = _propertyObjectClient.GetNumSubProperties(
 				new PropertyObject_GetNumSubPropertiesRequest
@@ -1614,7 +1614,7 @@ namespace ExampleClient
 		}
 
 		private void OnDeleteStationGlobalClick(object sender, EventArgs e)
-        {
+    {
 			ListViewItem selectedItem = _stationGlobalsListView.Items[_stationGlobalsListView.SelectedIndices[0]];
 			PropertyObjectInstance stationGlobals = _engineClient.Get_Globals(new Engine_Get_GlobalsRequest { Instance = _engine }).ReturnValue;
 			_propertyObjectClient.DeleteSubProperty(new PropertyObject_DeleteSubPropertyRequest
@@ -1628,8 +1628,8 @@ namespace ExampleClient
 			_commitGlobalsToDiskButton.Enabled = true;
 		}
 
-        private void OnBooleanValueComboBoxSelectionChangedCommitted(object sender, EventArgs e)
-        {
+    private void OnBooleanValueComboBoxSelectionChangedCommitted(object sender, EventArgs e)
+    {
 			SetValueOnGlobalVariable((string)_booleanValueComboBox.SelectedItem);
 		}
 
@@ -1658,7 +1658,7 @@ namespace ExampleClient
 		}
 
 		private void SetValueOnGlobalVariable(string newValue)
-        {
+    {
 			ListViewItem selectedItem = _stationGlobalsListView.Items[_valueForSelectedItemIndex];
 			PropertyObjectInstance stationGlobals = _engineClient.Get_Globals(new Engine_Get_GlobalsRequest { Instance = _engine }).ReturnValue;
 			PropertyObjectInstance globalObject = _propertyObjectClient.GetPropertyObject(
@@ -1682,10 +1682,10 @@ namespace ExampleClient
 			_commitGlobalsToDiskButton.Enabled = true;
 		}
 
-        private void OnClearExecutionTraceMessagesButtonClick(object sender, EventArgs e)
-        {
+    private void OnClearExecutionTraceMessagesButtonClick(object sender, EventArgs e)
+    {
 			ClearTraceMessages();
-        }
+    }
 
 		private void IdentifyThread(ThreadInstance thread, out ThreadInfo threadInfo)
 		{
@@ -1757,7 +1757,7 @@ namespace ExampleClient
 		}
 
 		private List<ExecutionInfo> GetOpenExecutionsAssociatedWithActiveExecution(bool getThreadInfo)
-        {
+    {
 			var executionInstances = new List<ExecutionInfo>();
 
 			if (_activeExecution == null)
@@ -1803,7 +1803,7 @@ namespace ExampleClient
 				}
 
 				if (executionStartedByClient)
-                {
+            {
 					executionInfo.Name = _executionClient.Get_DisplayName(new Execution_Get_DisplayNameRequest { Instance = execution }).ReturnValue;
 					executionInfo.RunState = _executionClient.GetStates(new Execution_GetStatesRequest { Instance = execution }).RunState;
 
@@ -1826,7 +1826,7 @@ namespace ExampleClient
 		}
 
 		private ExecutionsInstance GetAllOpenExecutions()
-        {
+    {
 			var applicationMgr = new ApplicationMgrInstance { Id = "ApplicationMgr" };
 
 			return _applicationMgrClient.Get_Executions(new ApplicationMgr_Get_ExecutionsRequest { Instance = applicationMgr }).ReturnValue;
@@ -1844,8 +1844,8 @@ namespace ExampleClient
 			}
 		}
 
-        private void OnEnableTracingCheckBoxCheckStateChanged(object sender, EventArgs e)
-        {
+    private void OnEnableTracingCheckBoxCheckStateChanged(object sender, EventArgs e)
+    {
 			StationOptionsInstance stationOptions = GetStationOptions();
 			_stationOptionsClient.Set_TracingEnabled(
 				new StationOptions_Set_TracingEnabledRequest
@@ -1857,7 +1857,7 @@ namespace ExampleClient
 			UpdateTraceMessagesControls();
 
 			if (!_enableTracingCheckBox.Checked)
-            {
+        {
 
 
 			}
@@ -1877,11 +1877,11 @@ namespace ExampleClient
 		}
 
 		private void LogLine(string lineToLog, int indentationLevel = 0)
-        {
+    {
 			Log(lineToLog + Environment.NewLine, indentationLevel);
 		}
 		private void Log(string stringToLog, int indentationLevel = 0)
-        {
+    {
 			stringToLog = GetIndentSpace(indentationLevel) + stringToLog;
 			this.BeginInvoke(() =>  // BeginInvoke, so this can be called from any thread without blocking
 			{ 
@@ -1890,17 +1890,17 @@ namespace ExampleClient
 			});
 		}
 
-        /// <summary>
-        /// Appends the given line to the log control
-        /// </summary>
-        /// <param name="lineToLog">The line of text to append</param>
-        /// <param name="textBackgroundColor">The background color to use to highlight the text</param>
-        /// <param name="indentationLevel">The indentation level of the text</param>
-        /// <param name="overlayColor">When true, the text is highlighted. When false, a color box will be added to the left of the text.</param>
-        private void LogLine(string lineToLog, Color textBackgroundColor, int indentationLevel = 0, bool overlayColor = true)
-        {
+    /// <summary>
+    /// Appends the given line to the log control
+    /// </summary>
+    /// <param name="lineToLog">The line of text to append</param>
+    /// <param name="textBackgroundColor">The background color to use to highlight the text</param>
+    /// <param name="indentationLevel">The indentation level of the text</param>
+    /// <param name="overlayColor">When true, the text is highlighted. When false, a color box will be added to the left of the text.</param>
+    private void LogLine(string lineToLog, Color textBackgroundColor, int indentationLevel = 0, bool overlayColor = true)
+    {
 			Log(lineToLog + Environment.NewLine, textBackgroundColor, indentationLevel, overlayColor);
-        }
+    }
 
 		/// <summary>
 		/// Appends the given string to the log control
@@ -1916,23 +1916,23 @@ namespace ExampleClient
 		}
 
 		private void LogImpl(string stringToLog, Color textBackgroundColor, int indentationLevel = 0, bool overlayColor = true)
-        {
+    {
 			int indentOffset = indentationLevel * IndentOffsetForOneLevel;
-            int startSelection = _logTextBox.TextLength + indentOffset;
+        int startSelection = _logTextBox.TextLength + indentOffset;
 			Color originalSelectionBackgroundColor = _logTextBox.SelectionBackColor;
 
-            stringToLog = GetIndentSpace(indentationLevel) + stringToLog;
+        stringToLog = GetIndentSpace(indentationLevel) + stringToLog;
 
-            int selectionLength;
-            if (overlayColor)
+        int selectionLength;
+        if (overlayColor)
 			{
 				selectionLength = stringToLog.Length;
 			}
 			else
 			{
-                // When not overlaying the color, we need to add a box with the given color before the text.
-                selectionLength = ColorBoxWidth;
-                stringToLog = stringToLog.Insert(indentOffset, ColorBoxSpace);
+            // When not overlaying the color, we need to add a box with the given color before the text.
+            selectionLength = ColorBoxWidth;
+            stringToLog = stringToLog.Insert(indentOffset, ColorBoxSpace);
 			}
 
 			_logTextBox.AppendText(stringToLog);
@@ -1945,7 +1945,7 @@ namespace ExampleClient
 			_logTextBox.SelectionBackColor = originalSelectionBackgroundColor;
 
 			ScrollToBottomOfText(_logTextBox);
-        }
+    }
 
 		private void LogBold(string stringToLog, int indentationLevel = 0)
 		{
@@ -1954,13 +1954,13 @@ namespace ExampleClient
 		}
 
 		private void LogBoldImpl(string stringToLog, int indentationLevel = 0)
-        {
+    {
 			int startSelection = _logTextBox.TextLength;
 			Font originalSelectionFont = _logTextBox.SelectionFont;
 
-            stringToLog = GetIndentSpace(indentationLevel) + stringToLog;
+        stringToLog = GetIndentSpace(indentationLevel) + stringToLog;
 
-            _logTextBox.AppendText(stringToLog);
+        _logTextBox.AppendText(stringToLog);
 			_logTextBox.Select(startSelection, stringToLog.Length);
 			_logTextBox.SelectionFont = new Font(_logTextBox.Font, FontStyle.Bold);
 
@@ -1979,22 +1979,22 @@ namespace ExampleClient
 
 		private void LogFadedImpl(string stringToLog, int indentationLevel = 0)
 		{
-            int startSelection = _logTextBox.TextLength;
-            Color originalSelectionColor = _logTextBox.SelectionColor;
+        int startSelection = _logTextBox.TextLength;
+        Color originalSelectionColor = _logTextBox.SelectionColor;
 
-            stringToLog = GetIndentSpace(indentationLevel) + stringToLog;
+        stringToLog = GetIndentSpace(indentationLevel) + stringToLog;
 
-            _logTextBox.AppendText(stringToLog);
-            _logTextBox.Select(startSelection, stringToLog.Length);
-            _logTextBox.SelectionColor = Color.FromArgb(129, 131, 134); // Light gray
+        _logTextBox.AppendText(stringToLog);
+        _logTextBox.Select(startSelection, stringToLog.Length);
+        _logTextBox.SelectionColor = Color.FromArgb(129, 131, 134); // Light gray
 
-            // Reset selection and color
-            _logTextBox.Select(startSelection + stringToLog.Length, 0);
-            _logTextBox.SelectionColor = originalSelectionColor;
-        }
+        // Reset selection and color
+        _logTextBox.Select(startSelection + stringToLog.Length, 0);
+        _logTextBox.SelectionColor = originalSelectionColor;
+    }
 
-        private static void ScrollToBottomOfText(RichTextBox richTextBox)
-        {
+    private static void ScrollToBottomOfText(RichTextBox richTextBox)
+    {
 			richTextBox.SelectionStart = richTextBox.Text.Length;
 			richTextBox.ScrollToCaret();
 		}
@@ -2035,7 +2035,7 @@ namespace ExampleClient
 
 		private string InsertColorBoxSpaceToTraceMessage(string traceMessage)
 		{
-            int startIndex = traceMessage.IndexOf("Step");
+        int startIndex = traceMessage.IndexOf("Step");
 			if (startIndex != -1)
 			{
 				// Insertion starts at the beginning of status.
@@ -2043,10 +2043,10 @@ namespace ExampleClient
 				startIndex -= (StatusLength + 2);
 
 				// Insert status box color space
-                traceMessage = traceMessage.Insert(startIndex, ColorBoxSpace);
+            traceMessage = traceMessage.Insert(startIndex, ColorBoxSpace);
 
-                // If trace message has an error, we need to indent the error line as well.
-                if (traceMessage.IndexOf("Code") != -1)
+            // If trace message has an error, we need to indent the error line as well.
+            if (traceMessage.IndexOf("Code") != -1)
 				{
 					int indexOfNewLine = traceMessage.IndexOf('\n');
 					if (indexOfNewLine != -1)
@@ -2054,109 +2054,109 @@ namespace ExampleClient
 						traceMessage = traceMessage.Insert(indexOfNewLine + 1, ColorBoxSpace);
 					}
 				}
-            }
-
-            return traceMessage;
         }
 
-        private void FadeLabel(string label, int startSearchOffset)
+        return traceMessage;
+    }
+
+    private void FadeLabel(string label, int startSearchOffset)
 		{
 			int startSelection = _executionTraceMessagesTextBox.Text.IndexOf(label, startSearchOffset);
-            if (startSelection != -1)
-            {
-                Color originalSelectionColor = _executionTraceMessagesTextBox.SelectionColor;
+        if (startSelection != -1)
+        {
+            Color originalSelectionColor = _executionTraceMessagesTextBox.SelectionColor;
 
-                _executionTraceMessagesTextBox.Select(startSelection, label.Length);
-                _executionTraceMessagesTextBox.SelectionColor = Color.FromArgb(129, 131, 134);
+            _executionTraceMessagesTextBox.Select(startSelection, label.Length);
+            _executionTraceMessagesTextBox.SelectionColor = Color.FromArgb(129, 131, 134);
 
-                // Reset selection and color
-                _executionTraceMessagesTextBox.Select(startSelection + label.Length, 0);
-                _executionTraceMessagesTextBox.SelectionColor = originalSelectionColor;
-            }
+            // Reset selection and color
+            _executionTraceMessagesTextBox.Select(startSelection + label.Length, 0);
+            _executionTraceMessagesTextBox.SelectionColor = originalSelectionColor;
         }
+    }
 
 		private void AddColorBoxToTraceResult(int startSearchOffset)
 		{
-            int startSelection = _executionTraceMessagesTextBox.Text.IndexOf("Step", startSearchOffset);
-            if (startSelection != -1)
-            {
-                // Selection starts at the beginning of the colorbox space.
-                // Add 2 additional spaces to include space between status and "Step" label;
-                startSelection -= (StatusLength + ColorBoxSpace.Length + 2); 
+        int startSelection = _executionTraceMessagesTextBox.Text.IndexOf("Step", startSearchOffset);
+        if (startSelection != -1)
+        {
+            // Selection starts at the beginning of the colorbox space.
+            // Add 2 additional spaces to include space between status and "Step" label;
+            startSelection -= (StatusLength + ColorBoxSpace.Length + 2); 
 
-                Color originalSelectionBackgroundColor = _executionTraceMessagesTextBox.SelectionBackColor;
-                string status = _executionTraceMessagesTextBox.Text.Substring(startSelection + ColorBoxSpace.Length, StatusLength);
+            Color originalSelectionBackgroundColor = _executionTraceMessagesTextBox.SelectionBackColor;
+            string status = _executionTraceMessagesTextBox.Text.Substring(startSelection + ColorBoxSpace.Length, StatusLength);
 
-                _executionTraceMessagesTextBox.Select(startSelection, ColorBoxWidth);
-                _executionTraceMessagesTextBox.SelectionBackColor = GetResultBackgroundColor(status);
+            _executionTraceMessagesTextBox.Select(startSelection, ColorBoxWidth);
+            _executionTraceMessagesTextBox.SelectionBackColor = GetResultBackgroundColor(status);
 
-                // Reset selection and color
-                _executionTraceMessagesTextBox.Select(startSelection + ColorBoxWidth, 0);
-                _executionTraceMessagesTextBox.SelectionBackColor = originalSelectionBackgroundColor;
-            }
+            // Reset selection and color
+            _executionTraceMessagesTextBox.Select(startSelection + ColorBoxWidth, 0);
+            _executionTraceMessagesTextBox.SelectionBackColor = originalSelectionBackgroundColor;
+        }
+    }
+
+    private string GetIndentSpace(int indentationLevel)
+    {
+        string indentSpace = string.Empty;
+        while (indentationLevel > 0)
+        {
+            indentSpace = IndentSpace + indentSpace;
+            indentationLevel--;
         }
 
-        private string GetIndentSpace(int indentationLevel)
-        {
-            string indentSpace = string.Empty;
-            while (indentationLevel > 0)
-            {
-                indentSpace = IndentSpace + indentSpace;
-                indentationLevel--;
-            }
+        return indentSpace;
+    }
 
-            return indentSpace;
-        }
-
-        private void ClearTraceMessages()
-        {
+    private void ClearTraceMessages()
+    {
 			_executionTraceMessagesTextBox.Text = string.Empty;
 		}
 
 		private void SetBusy()
-        {
+    {
 			lock(_dataLock)
-            {
+        {
 				_busyCount++;
 				if (_busyCount == 1)
-                {
+            {
 					_previousCursor = Cursor.Current;
 					Cursor.Current = Cursors.WaitCursor;
 				}
-            }
         }
+    }
 
 		private void UnsetBusy()
-        {
+    {
 			lock (_dataLock)
 			{
 				Debug.Assert(_busyCount > 0, "Busy count is not greater than zero.");
 				_busyCount--;
 
 				if (_busyCount == 0)
-                {
+            {
 					Cursor.Current = _previousCursor;
 				}
 			}
-        }
+    }
 
-        private void SetLineSpacing(RichTextBox richTextBox)
-        {
-            // The only way to set line spacing on a RichTextBox is
-            // through a EM_SETPARAFORMAT message.
+    private void SetLineSpacing(RichTextBox richTextBox)
+    {
+        // The only way to set line spacing on a RichTextBox is
+        // through a EM_SETPARAFORMAT message.
 
-            var paraformat = new PARAFORMAT2();
-            paraformat.cbSize = (uint)Marshal.SizeOf(paraformat);
-            paraformat.wReserved = 0;
-            paraformat.dwMask = (uint)RichTextBoxOptions.PFM_LINESPACING;
+        var paraformat = new PARAFORMAT2();
+        paraformat.cbSize = (uint)Marshal.SizeOf(paraformat);
+        paraformat.wReserved = 0;
+        paraformat.dwMask = (uint)RichTextBoxOptions.PFM_LINESPACING;
 			paraformat.dyLineSpacing = 25;  // 1.25 line spacing
 
-            // The value of dyLineSpacing/20 is the spacing, in lines, from one line to the next.
+        // The value of dyLineSpacing/20 is the spacing, in lines, from one line to the next.
 			// Thus, setting dyLineSpacing to 20 produces single-spaced text, 40 is double spaced,
 			// 60 is triple spaced, and so on.
-            paraformat.bLineSpacingRule = 5;
+        paraformat.bLineSpacingRule = 5;
 
-            IntPtr lParam = IntPtr.Zero;
+        IntPtr lParam = IntPtr.Zero;
 			try
 			{
 				lParam = Marshal.AllocHGlobal(Marshal.SizeOf(paraformat));
@@ -2175,9 +2175,9 @@ namespace ExampleClient
 					Marshal.FreeHGlobal(lParam);
 				}
 			}
-        }
+    }
 
-        private class AutoWaitCursor : IDisposable
+    private class AutoWaitCursor : IDisposable
 		{
 			private readonly Example _exampleApplication;
 			private bool _disposedValue = false;
@@ -2208,4 +2208,3 @@ namespace ExampleClient
 			}
 		}
 	}
-}
