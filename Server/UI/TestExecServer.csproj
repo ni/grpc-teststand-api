@@ -74,6 +74,10 @@
     <CodeAnalysisIgnoreBuiltInRules>true</CodeAnalysisIgnoreBuiltInRules>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\CommonFiles\ServerConfigurationParser.cs" Link="ServerConfigurationParser.cs" />
+    <Compile Include="..\CommonFiles\GrpcServerBase.cs" Link="GrpcServerBase.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <Reference Update="System">
       <Name>System</Name>
     </Reference>
@@ -88,9 +92,44 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="..\CommonFiles\server_config.json" Link="server_config.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="App.ico" />
   </ItemGroup>
   <PropertyGroup />
+  <ItemGroup>
+    <None Include="..\CommonFiles\certs\client_self_signed_crt.pem" Link="certs\client_self_signed_crt.pem">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\CommonFiles\certs\server.pfx" Link="certs\server.pfx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\CommonFiles\certs\server_privatekey.pem" Link="certs\server_privatekey.pem">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\CommonFiles\certs\server_self_signed_crt.pem" Link="certs\server_self_signed_crt.pem">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\ExampleFiles\LoadError.seq" Link="ExamplesFiles\LoadError.seq">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\ExampleFiles\LoopForever.seq" Link="ExamplesFiles\LoopForever.seq">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\ExampleFiles\RunTimeError.seq" Link="ExamplesFiles\RunTimeError.seq">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\ExampleFiles\StepResults.seq" Link="ExamplesFiles\StepResults.seq">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\ExampleFiles\Test.seq" Link="ExamplesFiles\Test.seq">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\ExampleFiles\TraceExecution.seq" Link="ExamplesFiles\TraceExecution.seq">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Grpc.AspNetCore" Version="2.48.0" />
     <PackageReference Include="Grpc.AspNetCore.Web" Version="2.48.0" />
@@ -101,30 +140,7 @@
     <PackageReference Include="Microsoft.Windows.Compatibility" Version="5.0.2" />
     <PackageReference Include="NationalInstruments.TestStand.Grpc.Server" Version="0.5.0-*" />
   </ItemGroup>
-  <ItemGroup>
-    <None Update="LoadError.seq">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="LoopForever.seq">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="RunTimeError.seq">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="server_config.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="StepResults.seq">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Test.seq">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="TraceExecution.seq">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="xcopy /I /Y certs $(OutDir)\certs" />
-  </Target>
+	<Target Name="PostBuildClean" AfterTargets="Clean">
+		<RemoveDir Directories="$(OutDir)" />
+	</Target>
 </Project>

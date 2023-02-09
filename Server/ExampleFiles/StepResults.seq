@@ -3630,7 +3630,7 @@
 																<value>true</value>
 															</StepFCSeqF>
 															<IgnoreRTE classname='Bool'>
-																<value>false</value>
+																<value>true</value>
 															</IgnoreRTE>
 															<UseMutex classname='Bool'>
 																<value>false</value>

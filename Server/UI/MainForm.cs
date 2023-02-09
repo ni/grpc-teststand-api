@@ -15,11 +15,13 @@
 
 using System;
 using System.Diagnostics;
+using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
-
 using NationalInstruments.TestStand.Grpc.Net.Server.OO;
 
 // TestStand Core API 
@@ -39,7 +41,7 @@ namespace TestExecServer
 	/// </summary>
 	public class MainForm : Form
 	{
-		private const int WM_QUERYENDSESSION = 0x11; // See Microsoft documentation.
+        private const int WM_QUERYENDSESSION = 0x11; // See Microsoft documentation.
 		private const string WindowTitle = "Simple Test Executive Operator Interface Example - with gRPC server";
 
 		private NationalInstruments.TestStand.Interop.UI.Ax.AxComboBox axFilesComboBox;
@@ -55,6 +57,7 @@ namespace TestExecServer
 		private System.Windows.Forms.Label sequenceFileLabel;
 		private System.Windows.Forms.Label sequenceLabel;
 		private System.Windows.Forms.Label executionLabel;
+		private System.Windows.Forms.Label waitForClientLabel;
 		private NationalInstruments.TestStand.Interop.UI.Ax.AxSequenceView axSequenceView;
 		private NationalInstruments.TestStand.Interop.UI.Ax.AxExecutionViewMgr axExecutionViewMgr;
 		private NationalInstruments.TestStand.Interop.UI.Ax.AxSequenceFileViewMgr axSequenceFileViewMgr;
@@ -69,6 +72,7 @@ namespace TestExecServer
         
 		private bool _isHeadless;
 		private NotifyIcon _notifyIcon;
+		private string _serverAndPortInformation;
 
 		// flag that will be set to true if the user tries to shut down windows
 		private bool _sessionEnding = false;
@@ -109,7 +113,7 @@ namespace TestExecServer
 		/// <summary>
 		/// Clean up any resources being used.
 		/// </summary>
-		protected override void Dispose( bool disposing )
+		protected override void Dispose(bool disposing)
 		{
 			if (disposing)
 			{
@@ -118,9 +122,9 @@ namespace TestExecServer
 					components.Dispose();
 				}
 
-				TestStandGrpcApi.GrpcServer.Shutdown();
+				GrpcServer.Shutdown();
 			}
-			base.Dispose( disposing );
+			base.Dispose(disposing);
 		}
 
 		#region Windows Form Designer generated code
@@ -148,6 +152,7 @@ namespace TestExecServer
 			this.sequenceFileLabel = new System.Windows.Forms.Label();
 			this.sequenceLabel = new System.Windows.Forms.Label();
 			this.executionLabel = new System.Windows.Forms.Label();
+			this.waitForClientLabel = new System.Windows.Forms.Label();
 			this.axSequenceView = new NationalInstruments.TestStand.Interop.UI.Ax.AxSequenceView();
 			this.axReportView = new NationalInstruments.TestStand.Interop.UI.Ax.AxReportView();
 			this.axBreakResumeButton = new NationalInstruments.TestStand.Interop.UI.Ax.AxButton();
@@ -306,6 +311,15 @@ namespace TestExecServer
 			this.executionLabel.TabIndex = 9;
 			this.executionLabel.Text = "Executions:";
 			// 
+			// waitForClientLabel
+			//
+			this.waitForClientLabel.AutoSize = true;
+			this.waitForClientLabel.Location = new System.Drawing.Point(5, 575);
+			this.waitForClientLabel.Name = "waitForClientLabel";
+			this.waitForClientLabel.Size = new System.Drawing.Size(96, 16);
+			this.waitForClientLabel.TabIndex = 20;
+			this.waitForClientLabel.Text = "";
+			// 
 			// axSequenceView
 			// 
 			this.axSequenceView.Location = new System.Drawing.Point(5, 125);
@@ -344,7 +358,7 @@ namespace TestExecServer
 			this.axLoginLogoutButton.Name = "axLoginLogoutButton";
 			this.axLoginLogoutButton.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("axLoginLogoutButton.OcxState")));
 			this.axLoginLogoutButton.Size = new System.Drawing.Size(167, 26);
-			this.axLoginLogoutButton.TabIndex = 20;
+			this.axLoginLogoutButton.TabIndex = 21;
 			// 
 			// axExitButton
 			// 
@@ -352,7 +366,7 @@ namespace TestExecServer
 			this.axExitButton.Name = "axExitButton";
 			this.axExitButton.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("axExitButton.OcxState")));
 			this.axExitButton.Size = new System.Drawing.Size(167, 26);
-			this.axExitButton.TabIndex = 21;
+			this.axExitButton.TabIndex = 22;
 			// 
 			// axTerminateAllButton
 			// 
@@ -380,6 +394,7 @@ namespace TestExecServer
 			this.Controls.Add(this.executionLabel);
 			this.Controls.Add(this.sequenceLabel);
 			this.Controls.Add(this.sequenceFileLabel);
+			this.Controls.Add(this.waitForClientLabel);
 			this.Controls.Add(this.axExecutionsComboBox);
 			this.Controls.Add(this.axRunSelectedButton);
 			this.Controls.Add(this.axEntryPoint2Button);
@@ -434,16 +449,17 @@ namespace TestExecServer
 			bool isHeadless = Array.Exists(args, arg => string.Equals(arg, "/headless", StringComparison.OrdinalIgnoreCase));
 			var form = new MainForm(isHeadless);
 
-			// specify an action to perform if waiting on a client event reply in the GUI thread. This is optional. It will improve UI responsiveness
-			// of the server app when clients go unresponsive and the title bar message will inform a user who is interacting with the server app
-			// when the progress of the app is necessarily impeeded due to waiting for client event responses or for the corresponding timeouts to expire.
+			// Specify an action to perform if waiting on a client event reply in the GUI thread. This is optional. It will improve UI responsiveness
+			// of the server app when clients go unresponsive and a message at the bottom left of the main form will inform a user who is interacting
+			// with the server app when the progress of the app is necessarily impeeded due to waiting for client event responses or for the corresponding
+			// timeouts to expire.
 			ConnectionFactory.WaitLoopDelegate = (WaitLoopStates waitLoopState, double elapsedWaitTime) =>
 			{
 				if (!form.InvokeRequired)  // if we are waiting for a grpc event reply in the gui thread...
 				{					
 					if (waitLoopState == WaitLoopStates.Ended)
 					{
-						form.Text = Regex.Replace(form.Text, @" \[Waiting For Client ?\d+[\.?\d+]*\]", String.Empty); // clear wait message
+						form.waitForClientLabel.Text = string.Empty; // clear wait message
 						// form.Enabled = true;  // see comment on form.Enabled = false
 					}
 					else
@@ -452,30 +468,44 @@ namespace TestExecServer
 						// parent window  before running its nested event loop
 						// form.Enabled = false; // actually not doing this because disabling the form prevents dragging and makes the UI look hung even if it isn't. A more targeted disabling would be better.
 
-						if (waitLoopState == WaitLoopStates.Starting)
-							form.Text += $" [Waiting For Client {elapsedWaitTime:F1}]";
-						else
-							form.Text = Regex.Replace(form.Text, @" \[Waiting For Client ?\d+[\.?\d+]*\]", $" [Waiting For Client {elapsedWaitTime:F1}]");
+						form.waitForClientLabel.Text = $"Waiting For Client {elapsedWaitTime:F1}";
 
 						Application.DoEvents(); // process events so the gui thread isn't hung while waiting
 					}
 				}
 			};
 
-			TestStandGrpcApi.GrpcServer.Start(args);  // start grpc server
+			GrpcServer.StartupException += (_, exception) => 
+			{
+				form.Invoke(() =>
+				{
+					form.Activate();
+
+					// Show the error message in the UI thread.
+					var message = $"{exception.Message}" +
+									Environment.NewLine +
+									Environment.NewLine +
+									$"You can change the port number in the service_config.json file.";
+
+					form.axApplicationMgr.RaiseError(errorCode: exception.HResult, message);
+					Application.Exit();
+				});
+			};
+
+			GrpcServer.Start(args);  // start grpc server
 
 			ApplicationWrapper.Run(form);
 		}
 
 		private void MainForm_Load(object sender, System.EventArgs e)
-		{			
+		{
 			try
 			{
 				// If this UI is running in a CLR other than the one TestStand uses,
 				// then it needs its own GCTimer for that version of the CLR. If it's running in the
 				// same CLR as TestStand then the engine's gctimer enabled by the ApplicationMgr
 				// is sufficient. See the API help for Engine.DotNetGarbageCollectionInterval for more details.
-				if (System.Environment.Version.ToString() != axApplicationMgr.GetEngine().DotNetCLRVersion)
+				if (Environment.Version.ToString() != axApplicationMgr.GetEngine().DotNetCLRVersion)
 					this.GCTimer.Enabled = true;
 				
 				// connect TestStand comboboxes 
@@ -524,18 +554,26 @@ namespace TestExecServer
 				Application.Exit();
 			}
 
-			if (string.IsNullOrEmpty(TestStandGrpcApi.GrpcServer.ErrorMessage))
+			if (string.IsNullOrEmpty(GrpcServer.ErrorMessage))
 			{
-				string typeOfConnection = TestStandGrpcApi.GrpcServer.UsesHttps ? " [Secure]" : " [Not secure]";
-				Text += typeOfConnection;
+				_serverAndPortInformation = Dns.GetHostEntry(Dns.GetHostName()).HostName + ":" + GrpcServer.Port;
 
-				string trayText = "TestStand gRPC Server" + typeOfConnection;
+				string ipaddressAndPort = " [" + _serverAndPortInformation + "]";
+				string typeOfConnection = GrpcServer.UsesHttps ? " [Secure]" : " [Not secure]";
+				Text += typeOfConnection + ipaddressAndPort;
+
+				string trayText = "TestStand gRPC Server" + typeOfConnection + ipaddressAndPort;
 				_notifyIcon.BalloonTipTitle = trayText;
 				_notifyIcon.Text = trayText;
+
+				AddCopyServerInformationMenuItemToSystemMenu();
+
+				// Enable finding example sequence files in the location of the executable.
+				EnableApplicationDirectorySearchPath();
 			}
 			else if (_isHeadless)
 			{
-				string message = "Failed to initialize gRPC service with following error(s):\n\n" + TestStandGrpcApi.GrpcServer.ErrorMessage;
+				string message = "Failed to initialize gRPC service with following error(s):\n\n" + GrpcServer.ErrorMessage;
 
 				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 				{
@@ -553,11 +591,24 @@ namespace TestExecServer
 				// MainForm will show before the error dialog when using BeginInvoke, however, in most cases it does.
 				BeginInvoke(() =>
 				{
-					string message = "Failed to initialize gRPC service with following error(s):\n\n" + TestStandGrpcApi.GrpcServer.ErrorMessage;
+					string message = "Failed to initialize gRPC service with following error(s):\n\n" + GrpcServer.ErrorMessage;
 					axApplicationMgr.RaiseError((int)TSError.TS_Err_OperationFailed, message);
-
 				});
-            }
+			}
+		}
+
+		private void EnableApplicationDirectorySearchPath()
+		{
+			SearchDirectories searchDirectories = axApplicationMgr.GetEngine().SearchDirectories;
+
+			foreach (SearchDirectory searchDirectory in searchDirectories)
+			{
+				if (searchDirectory.Type == SearchDirectoryTypes.SearchDirectoryType_ApplicationDir)
+				{
+					searchDirectory.Disabled = false;
+					break;
+				}
+			}
 		}
 
 		// handle request to close form (via Windows close box, for example)
@@ -574,7 +625,7 @@ namespace TestExecServer
 			}
 
 			if (!e.Cancel)
-            {
+			{
 				// Since server is shutting down, discard all connections to make sure
 				// all objects in those connections are also released.
 				ConnectionFactory.DiscardAllConnections();
@@ -583,12 +634,21 @@ namespace TestExecServer
 
 		protected override void WndProc(ref Message msg)
 		{
+			const int WM_SYSCOMMAND = 0x0112;
+
 			// set the sessionEnding flag so I will know the form is closing because the user
 			// is trying to shutdown, restart, or logoff windows
 			if (msg.Msg == WM_QUERYENDSESSION)
 			{
 				_sessionEnding = true;
 				Application.Exit();
+			}
+			else if (msg.Msg == WM_SYSCOMMAND)
+			{
+				if (msg.WParam.ToInt32() == ID_COPY_SERVER_INFO)
+				{
+					Clipboard.SetText(_serverAndPortInformation);
+				}
 			}
 
 			base.WndProc(ref msg);
@@ -667,5 +727,23 @@ namespace TestExecServer
 
 			EventLog.WriteEntry(logSource, textToLog, EventLogEntryType.Error);
 		}
+
+		private const int MF_BYPOSITION = 0x0400;
+		private const int MF_STRING = 0x0000;
+		private const int MENU_POSITION = 5;
+		private const int ID_COPY_SERVER_INFO = 1;
+
+		private void AddCopyServerInformationMenuItemToSystemMenu()
+		{
+			IntPtr systemMenuPtr = GetSystemMenu(Handle, false);
+			HandleRef systemMenuHandle = new HandleRef(null, systemMenuPtr);
+			InsertMenu(systemMenuHandle, MENU_POSITION, MF_BYPOSITION | MF_STRING, ID_COPY_SERVER_INFO, "Copy Server Information to Clipboard");
+		}
+
+		[DllImport("user32.dll")]
+		private static extern IntPtr GetSystemMenu(IntPtr hWnd, bool bRevert);
+
+		[DllImport("user32.dll", CharSet = CharSet.Unicode, ExactSpelling = false)]
+		public extern static bool InsertMenu(HandleRef hMenu, UInt32 uPosition, UInt32 uFlags, UInt32 uIDNewItem, string lpNewItem);
 	}
 }

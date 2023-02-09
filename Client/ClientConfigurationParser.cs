@@ -48,6 +48,9 @@ namespace ExampleClient
 
         public Security Security { get; set; } = new Security();
 
+        [JsonPropertyName("example_files")]
+        public string[] ExampleFiles { get; set; }
+
         public string ServerCertificatePath { get; set; } = null;
 
         public string ServerCertificateFriendlyName { get; set; } = null;

@@ -207,7 +207,8 @@ namespace ExampleClient
 			try
 			{
 				var instanceLifetimeClient = new InstanceLifetime.InstanceLifetimeClient(grpcChannel);
-				instanceLifetimeClient.GetDefaultLifespan(new InstanceLifetime_GetDefaultLifespanRequest());
+				instanceLifetimeClient.GetDefaultLifespan(new InstanceLifetime_GetDefaultLifespanRequest(), 
+					new CallOptions().WithDeadline(DateTime.UtcNow.AddSeconds(10)));
 			}
 			catch (Exception exception)
 			{
@@ -216,14 +217,20 @@ namespace ExampleClient
 				string connectionType = isSecureConnection ? "secured (https)" : "not-secured (http)";
 				errorMessage = Invariant($"ERROR: Failed to connect to server using a '{connectionType}' connection with the following error:\n");
 
+				string details = string.Empty;
+
 				if (exception is RpcException rpcException)
 				{
-					errorMessage += rpcException.Status.Detail;
+					details = rpcException.Status.Detail;
 				}
-				else
+
+				// for deadline exceeded, the exception was RpcException, but rpcException.Status.Detail was empty, but exception.Message was not
+				if (string.IsNullOrEmpty(details))
 				{
-					errorMessage += exception.Message;
+					details += exception.Message;  
 				}
+
+				errorMessage += details;
 			}
 
 			return connectionSucceeded;

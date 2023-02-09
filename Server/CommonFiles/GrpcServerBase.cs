@@ -16,25 +16,28 @@ using static System.FormattableString;
 
 namespace TestStandGrpcApi
 {
-    public class GrpcServer
+    public class GrpcServerBase
     {
         private const string AllowedOrigins = "AllowedOrigins";
 
-        private static IHost _host;
-        private static ServerOptions _serverOptions;
         private static X509Certificate2 _serverCertificate;
         private static X509Certificate2 _clientCertificate;
 
-        public static void Start(string[] args)
+        protected static void InitializeServerOptions(string[] args)
 		{
             // From the command line, a configuration file path is specified by using the "-Config" option
             // followed by a file path.
             string configurationFile = GetConfigFilePathFromCommandLineIfSpecified(args);
             var serverConfiguration = new ServerConfigurationParser(configurationFile);
-            _serverOptions = serverConfiguration.Options;
+            ServerOptions = serverConfiguration.Options;
 
-            _host = CreateHostBuilder(args).Build();
-            Task.Run(() => _host.Run());
+            // To make a connection secure (server-side TLS), the server certificate information needs
+            // to be provided in the config file. If the information is left blank or no config file is
+            // specified, the connection will not be secured.
+            UsesHttps = !string.IsNullOrEmpty(ServerOptions.ServerCertificatePFXPath)
+                || !string.IsNullOrEmpty(ServerOptions.ServerCertificateFriendlyName)
+                || (!string.IsNullOrEmpty(ServerOptions.ServerCertificatePath)
+                && !string.IsNullOrEmpty(ServerOptions.ServerKeyPath));
         }
 
         private static string GetConfigFilePathFromCommandLineIfSpecified(string[] args)
@@ -58,7 +61,13 @@ namespace TestStandGrpcApi
             return null;
         }
 
+        protected static IHost ServerHost { get; set; }
+
+        protected static ServerOptions ServerOptions { get; private set; }
+
         public static bool UsesHttps { get; private set; }
+
+        public static int Port => ServerOptions.Port;
 
         // Has error messages generated when starting gRPC service. It will be displayed by the Application Manager
         // after it is created by MainForm.
@@ -69,14 +78,15 @@ namespace TestStandGrpcApi
             _clientCertificate?.Dispose();
             _serverCertificate?.Dispose();
 
-            Task task = Task.Run(async () => await _host.StopAsync());
+            Task task = Task.Run(async () => await ServerHost.StopAsync());
             Task.WaitAll(task);
-            _host.Dispose();
-            _host = null;
+            ServerHost.Dispose();
+            ServerHost = null;
         }
 
-        private static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args).ConfigureWebHostDefaults(webBuilder =>
+        protected static IHostBuilder CreateHostBuilder<T>(string[] args) where T : class =>
+            Host.CreateDefaultBuilder(args)
+            .ConfigureWebHostDefaults(webBuilder =>
             {
                 webBuilder.ConfigureLogging(logging =>
                 {
@@ -90,15 +100,7 @@ namespace TestStandGrpcApi
                         ConfigureSecureConnectionIfRequired(configureOptions);
                     });
 
-                    // To make a connection secure (server-side TLS), the server certificate information needs
-                    // to be provided in the config file. If the information is left blank or no config file is
-                    // specified, the connection will not be secured.
-                    UsesHttps = !string.IsNullOrEmpty(_serverOptions.ServerCertificatePFXPath)
-                        || !string.IsNullOrEmpty(_serverOptions.ServerCertificateFriendlyName)
-                        || (!string.IsNullOrEmpty(_serverOptions.ServerCertificatePath)
-                        && !string.IsNullOrEmpty(_serverOptions.ServerKeyPath));
-
-                    options.Listen(IPAddress.Any, _serverOptions.Port, listenOptions =>
+                    options.Listen(IPAddress.Any, ServerOptions.Port, listenOptions =>
                     {
                         listenOptions.Protocols = HttpProtocols.Http2;
                         if (UsesHttps)
@@ -109,13 +111,13 @@ namespace TestStandGrpcApi
                             }
                             catch (Exception e)
                             {
-                                ErrorMessage += Invariant($"Error starting port '{_serverOptions.Port}'.\nError: {e.Message}\n\n");
+                                ErrorMessage += Invariant($"Error starting port '{ServerOptions.Port}'.\nError: {e.Message}\n\n");
                             }
                         }
                     });
 
                     // Make the testing port be the next port
-                    int testingPort = _serverOptions.Port + 1;
+                    int testingPort = ServerOptions.Port + 1; // Port=5021
                     options.Listen(IPAddress.Any, testingPort, listenOptions =>
                     {
                         listenOptions.Protocols = HttpProtocols.Http2;
@@ -133,7 +135,7 @@ namespace TestStandGrpcApi
                     });
                 });
 
-                webBuilder.UseStartup<GrpcServer>();
+                webBuilder.UseStartup<T>();
             });
 
         private static void ConfigureSecureConnectionIfRequired(HttpsConnectionAdapterOptions configureOptions)
@@ -141,17 +143,17 @@ namespace TestStandGrpcApi
             // Since there are two channels, this method will be called twice. So, only load the server certificate once.
             if (_serverCertificate == null)
             {
-                if (!string.IsNullOrEmpty(_serverOptions.ServerCertificateFriendlyName))
+                if (!string.IsNullOrEmpty(ServerOptions.ServerCertificateFriendlyName))
                 {
-                    _serverCertificate = FindCertificateInCertificatesStore(_serverOptions.ServerCertificateFriendlyName);
+                    _serverCertificate = FindCertificateInCertificatesStore(ServerOptions.ServerCertificateFriendlyName);
                 }
-                else if (!string.IsNullOrEmpty(_serverOptions.ServerCertificatePFXPath))
+                else if (!string.IsNullOrEmpty(ServerOptions.ServerCertificatePFXPath))
                 {
-                    _serverCertificate = new X509Certificate2(_serverOptions.ServerCertificatePFXPath, _serverOptions.ServerCertificatePFXPassword);
+                    _serverCertificate = new X509Certificate2(ServerOptions.ServerCertificatePFXPath, ServerOptions.ServerCertificatePFXPassword);
                 }
-                else if (!string.IsNullOrEmpty(_serverOptions.ServerCertificatePath) && !string.IsNullOrEmpty(_serverOptions.ServerKeyPath))
+                else if (!string.IsNullOrEmpty(ServerOptions.ServerCertificatePath) && !string.IsNullOrEmpty(ServerOptions.ServerKeyPath))
                 {
-                    var serverCertificate = X509Certificate2.CreateFromPemFile(_serverOptions.ServerCertificatePath, _serverOptions.ServerKeyPath);
+                    var serverCertificate = X509Certificate2.CreateFromPemFile(ServerOptions.ServerCertificatePath, ServerOptions.ServerKeyPath);
 
                     // ASP.NET Core apps expect pfx certificates so we need to create one.
                     _serverCertificate = new X509Certificate2(serverCertificate.Export(X509ContentType.Pfx));
@@ -165,11 +167,11 @@ namespace TestStandGrpcApi
 
                 // If a client certificate has been specified, we need to validate the client. The server needs
                 // to verify who is connecting.  This is effectively implementing mutual TLS.
-                if (!string.IsNullOrEmpty(_serverOptions.ClientCertificatePath))
+                if (!string.IsNullOrEmpty(ServerOptions.ClientCertificatePath))
                 {
                     if (_clientCertificate == null)
                     {
-                        _clientCertificate = new X509Certificate2(_serverOptions.ClientCertificatePath);
+                        _clientCertificate = new X509Certificate2(ServerOptions.ClientCertificatePath);
                         if(_clientCertificate == null)
                         {
                             throw new Exception("Failed to load client certificate for mutual TLS. Verify certificate exists on disk.");
@@ -231,7 +233,7 @@ namespace TestStandGrpcApi
             return null;
         }
 
-        public GrpcServer(IConfiguration configuration)
+        public GrpcServerBase(IConfiguration configuration)
         {
             Configuration = configuration;
         }
@@ -239,7 +241,7 @@ namespace TestStandGrpcApi
         public IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
-        public static void ConfigureServices(IServiceCollection services)
+        public static void ConfigureServicesCore(IServiceCollection services)
         {
             services.AddControllers();
 
@@ -249,6 +251,13 @@ namespace TestStandGrpcApi
                 // Accept chained and self-signed certificates
                 // https://docs.microsoft.com/en-us/aspnet/core/security/authentication/certauth?view=aspnetcore-6.0#allowedcertificatetypes--chained-selfsigned-or-all-chained--selfsigned
                 options.AllowedCertificateTypes = CertificateTypes.All;
+
+                if (_clientCertificate != null)
+                {
+                    // Since we are using self-signed certificates for the client, turned off revocation checking to
+                    // avoid getting warnings when making gRPC calls to this service.
+                    options.RevocationMode = X509RevocationMode.NoCheck;
+                }
             });
 
             // Enable gRPC services
@@ -267,14 +276,14 @@ namespace TestStandGrpcApi
             // below. We also need to add a CORS policy (as done below) to allow specific origins (domains) to use this
             // service. For more information as to how to configure all the different options, see
             // https://learn.microsoft.com/en-us/aspnet/core/security/cors?view=aspnetcore-6.0
-            if (_serverOptions.Cors.IsEnabled)
+            if (ServerOptions.Cors.IsEnabled)
             {
                 services.AddCors(options =>
                 {
                     options.AddPolicy(name: AllowedOrigins,
                         policy =>
                         {
-                            policy.WithOrigins(_serverOptions.Cors.Origins)
+                            policy.WithOrigins(ServerOptions.Cors.Origins)
                                 .AllowAnyHeader()
                                 .AllowAnyMethod();
                         });
@@ -283,7 +292,7 @@ namespace TestStandGrpcApi
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public static void Configure(IApplicationBuilder app, IWebHostEnvironment _)
+        public static void ConfigureCore(IApplicationBuilder app, IWebHostEnvironment _)
         {
             // Microsoft recommends using HTTPS Redirection Middleware.
             // https://docs.microsoft.com/en-us/aspnet/core/security/enforcing-ssl?view=aspnetcore-6.0&tabs=visual-studio#require-https
@@ -306,7 +315,7 @@ namespace TestStandGrpcApi
             // Enabled CORS if option is enabled. Here we only enable the CORS middleware. In the method
             // ConfigureServices above, we add a CORS policy to enable browser apps to connect.
             // https://learn.microsoft.com/en-us/aspnet/core/grpc/grpcweb?view=aspnetcore-6.0#grpc-web-and-cors
-            if (_serverOptions.Cors.IsEnabled)
+            if (ServerOptions.Cors.IsEnabled)
             {
                 app.UseCors(AllowedOrigins);
             }
