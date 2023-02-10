@@ -38,5 +38,5 @@ release all object references or a subset that were allocated between markers.
  
 The lifetimes of object instance handles returned in an event stream are also governed by
 the parameters you specific when establishing the event stream. Refer to the request parameter to
-a GetEvents_[EventName]() method for more information. 
+a GetEvents_\[EventName\]() method for more information. 
 

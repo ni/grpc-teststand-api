@@ -21,6 +21,9 @@ namespace ExampleClient
 
                 _numTestSocketsNumericUpDownToolTip?.Dispose();
                 _numTestSocketsNumericUpDownToolTip = null;
+
+				_sequenceFileNameComboBoxToolTip?.Dispose();
+				_sequenceFileNameComboBoxToolTip = null;
             }
 			base.Dispose(disposing);
 		}
@@ -151,11 +154,13 @@ namespace ExampleClient
 			this._serverAddressTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
 			this._serverAddressTextBox.Location = new System.Drawing.Point(23, 3);
 			this._serverAddressTextBox.Name = "_serverAddressTextBox";
-			this._serverAddressTextBox.PlaceholderText = "Server Name/IP";
+			this._serverAddressTextBox.PlaceholderText = "Address:Port Number";
 			this._serverAddressTextBox.Size = new System.Drawing.Size(127, 16);
 			this._serverAddressTextBox.TabIndex = 3;
 			this._serverAddressTextBox.Tag = "";
 			this._serverAddressTextBox.Text = "127.0.0.1";
+			this._serverAddressTextBox.Validating += OnServerAddressTextBoxValidating;
+			this._serverAddressTextBox.Validated += OnServerAddressTextBoxValidated;
 			// 
 			// _serverAddressLabel
 			// 
@@ -222,13 +227,6 @@ namespace ExampleClient
 			this._sequenceFileNameComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
 			this._sequenceFileNameComboBox.FormattingEnabled = true;
 			this._sequenceFileNameComboBox.ItemHeight = 15;
-			this._sequenceFileNameComboBox.Items.AddRange(new object[] {
-            "test.seq",
-            "LoopForever.seq",
-            "TraceExecution.seq",
-            "LoadError.seq",
-            "RunTimeError.seq",
-            "StepResults.seq"});
 			this._sequenceFileNameComboBox.Location = new System.Drawing.Point(173, 122);
 			this._sequenceFileNameComboBox.Name = "_sequenceFileNameComboBox";
 			this._sequenceFileNameComboBox.Size = new System.Drawing.Size(174, 23);
@@ -723,9 +721,9 @@ namespace ExampleClient
 
 		}
 
-        #endregion
+		#endregion
 
-        private System.Windows.Forms.RichTextBox _logTextBox;
+		private System.Windows.Forms.RichTextBox _logTextBox;
 		private System.Windows.Forms.Label _logLabel;
 		private System.Windows.Forms.Button _runSequenceFileButton;
 		private System.Windows.Forms.ComboBox _processModelComboBox;

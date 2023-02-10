@@ -1,4 +1,9 @@
-﻿This example is a copy of <TestStand>\UserInterfaces\Simple\CSharp that has been extended to provide a gRPC server for the TestStand API
+﻿This example is a copy of <TestStand>\UserInterfaces\Simple\CSharp that has been extended to provide a gRPC server for the TestStand API.
+
+This example can run as a headless server. To enable the headless option, pass the command line argument "/headless" when running the server.
+If an error occurs while starting the gRPC service, the server will automatically shutdown and the error will be logged in the Windows Event Log.
+When running as a headless server, a tray icon will appear on the taskbar that allows you to close the server. To close the server, right-click
+on the tray icon and select Exit.
 
 To Do Items:
 

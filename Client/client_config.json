@@ -6,5 +6,6 @@
     "client_cert_pfx": "",
     "client_cert_pfx_password": "",
     "server_cert": "server_self_signed_crt.pem"
-  }
+  },
+  "example_files": [ "Test.seq", "StepResults.seq", "LoopForever.seq", "TraceExecution.seq", "LoadError.seq", "RunTimeError.seq" ]
 }

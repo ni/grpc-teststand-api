@@ -2,17 +2,17 @@
 <teststandfileheader type='SequenceFile' fileversion='920' productname='TestStand' productversion='2019 (19.0.0.170)' compatibleversion='19.0.0.0' buildversion='19.0.0.170' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.ni.com/TestStand/19.0.0/SequenceFile">
 	<typelist>
 		<typedef alwayssavetype='false' additionaltypeflags='0' typelistordernum='1'>
-			<StepTypeSubstepsArray classname='Objs' isroottypedef='true' typecategory='3' timestamp='1553895152' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' flagsforinstances='4718616' instanceoverrideflags='4849688' valueflags='24'>
+			<StepTypeSubstepsArray classname='Objs' isroottypedef='true' typecategory='3' timestamp='1607703962' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' flagsforinstances='4718616' instanceoverrideflags='4849688' valueflags='24'>
 				<value lbound='[0]' ubound='[]'/>
 			</StepTypeSubstepsArray>
 		</typedef>
 		<typedef alwayssavetype='false' additionaltypeflags='0' typelistordernum='2'>
-			<Expression classname='ExprValue' isroottypedef='true' typecategory='3' timestamp='1553895152' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436'>
+			<Expression classname='ExprValue' isroottypedef='true' typecategory='3' timestamp='1607703962' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436'>
 				<value/>
 			</Expression>
 		</typedef>
 		<typedef alwayssavetype='false' additionaltypeflags='0' typelistordernum='3'>
-			<StepTypeMenu classname='Obj' isroottypedef='true' typecategory='3' timestamp='1553895152' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' flagsforinstances='4718616' instanceoverrideflags='4718616' valueflags='24'>
+			<StepTypeMenu classname='Obj' isroottypedef='true' typecategory='3' timestamp='1607703962' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' flagsforinstances='4718616' instanceoverrideflags='4718616' valueflags='24'>
 				<subprops>
 					<CanBeSubstepType classname='Bool'>
 						<value>false</value>
@@ -42,7 +42,7 @@
 			</StepTypeMenu>
 		</typedef>
 		<typedef alwayssavetype='false' additionaltypeflags='0' typelistordernum='4'>
-			<NI_ArrayDimensions classname='ArrayDimensions' isroottypedef='true' typecategory='3' timestamp='1553895152' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' valueflags='24'>
+			<NI_ArrayDimensions classname='ArrayDimensions' isroottypedef='true' typecategory='3' timestamp='1607703962' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' valueflags='24'>
 				<subprops>
 					<LowerBounds classname='Nums'>
 						<value lbound='[0]' ubound='[]'/>
@@ -54,7 +54,7 @@
 			</NI_ArrayDimensions>
 		</typedef>
 		<typedef alwayssavetype='false' additionaltypeflags='0' typelistordernum='5'>
-			<NI_PropertyObjectType classname='PropertyObjectType' isroottypedef='true' typecategory='3' timestamp='1553895152' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' valueflags='24'>
+			<NI_PropertyObjectType classname='PropertyObjectType' isroottypedef='true' typecategory='3' timestamp='1607703962' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' valueflags='24'>
 				<subprops>
 					<ValueType classname='Num'>
 						<value>3</value>
@@ -88,7 +88,7 @@
 			</NI_PropertyObjectType>
 		</typedef>
 		<typedef alwayssavetype='false' additionaltypeflags='0' typelistordernum='6'>
-			<NI_CustomResult classname='CustomResult' isroottypedef='true' typecategory='3' timestamp='1553895152' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' valueflags='24'>
+			<NI_CustomResult classname='CustomResult' isroottypedef='true' typecategory='3' timestamp='1607703962' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' valueflags='24'>
 				<subprops>
 					<Name typename='Expression' xsi:type='Expression' classname='ExprValue'>
 						<value/>
@@ -148,7 +148,7 @@
 			</NI_CustomResult>
 		</typedef>
 		<typedef alwayssavetype='false' additionaltypeflags='0' typelistordernum='7'>
-			<TEInf classname='Obj' isroottypedef='true' typecategory='3' timestamp='1553895152' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' flagsforinstances='4456472' instanceoverrideflags='4456472' valueflags='24'>
+			<TEInf classname='Obj' isroottypedef='true' typecategory='3' timestamp='1607703962' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' flagsforinstances='4456472' instanceoverrideflags='4456472' valueflags='24'>
 				<subprops>
 					<Id classname='Str' flagsforinstances='1' instanceoverrideflags='5046297'>
 						<value/>
@@ -423,7 +423,7 @@
 			</TEInf>
 		</typedef>
 		<typedef alwayssavetype='false' additionaltypeflags='0' typelistordernum='8'>
-			<StepTypeNIData classname='Obj' isroottypedef='true' typecategory='3' timestamp='1553895152' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' flagsforinstances='4718616' instanceoverrideflags='4718616' valueflags='24'>
+			<StepTypeNIData classname='Obj' isroottypedef='true' typecategory='3' timestamp='1607703962' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' flagsforinstances='4718616' instanceoverrideflags='4718616' valueflags='24'>
 				<subprops>
 					<EditPanels classname='Strs'>
 						<value lbound='[0]' ubound='[]'/>
@@ -432,7 +432,7 @@
 			</StepTypeNIData>
 		</typedef>
 		<typedef alwayssavetype='false' additionaltypeflags='0' typelistordernum='9'>
-			<Error classname='Obj' isroottypedef='true' typecategory='3' timestamp='1553895152' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436'>
+			<Error classname='Obj' isroottypedef='true' typecategory='3' timestamp='1607703962' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436'>
 				<extdata controllername='STRUCT' allowstructpassing='true' packingoption='8' exclude='false' type='0' arraystorage='0' strbuffersize='256' strstorage='0'/>
 				<extdata controllername='CLUST' allowclusterpassing='true' exclude='false' memberlabel=''/>
 				<extdata controllername='DNSTRUCT' allowstructpassing='true' exclude='false' membername=''/>
@@ -466,7 +466,7 @@
 			<CommonResults classname='Obj' isroottypedef='true' typecategory='3' timestamp='1441304932' typeversion='3.1.0.100' typelastmodversion='19.0.0.170' typeminprodversion='3.1.0.0' typeflags='33554432' flagsforinstances='4194304' valueflags='4194304'/>
 		</typedef>
 		<typedef alwayssavetype='false' additionaltypeflags='0' typelistordernum='11'>
-			<EditSubstep classname='StepType' isroottypedef='true' typecategory='1' timestamp='1553895152' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554438' flagsforinstances='4194304' instanceoverrideflags='4194304'>
+			<EditSubstep classname='StepType' isroottypedef='true' typecategory='1' timestamp='1607703962' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554438' flagsforinstances='4194304' instanceoverrideflags='4194304'>
 				<subprops>
 					<DescriptionFormat typename='Expression' xsi:type='Expression' classname='ExprValue' flagsforinstances='4718616' instanceoverrideflags='4718616' valueflags='4194328' structureflags='524288'>
 						<value>"%ModuleDescription"</value>
@@ -900,12 +900,12 @@
 			</EditSubstep>
 		</typedef>
 		<typedef alwayssavetype='false' additionaltypeflags='0' typelistordernum='0'>
-			<Path classname='PathValue' isroottypedef='true' typecategory='3' timestamp='1553895152' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436'>
+			<Path classname='PathValue' isroottypedef='true' typecategory='3' timestamp='1607703962' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436'>
 				<value/>
 			</Path>
 		</typedef>
 		<typedef alwayssavetype='false' additionaltypeflags='0' typelistordernum='12'>
-			<NI_CommonCParameterResult classname='CommonCParameterResult' isroottypedef='true' typecategory='3' timestamp='1553895152' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' valueflags='24'>
+			<NI_CommonCParameterResult classname='CommonCParameterResult' isroottypedef='true' typecategory='3' timestamp='1607703962' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' valueflags='24'>
 				<subprops>
 					<Condition typename='Expression' xsi:type='Expression' classname='ExprValue'>
 						<value/>
@@ -921,7 +921,7 @@
 			</NI_CommonCParameterResult>
 		</typedef>
 		<typedef alwayssavetype='false' additionaltypeflags='0' typelistordernum='13'>
-			<FCParameter classname='FCParameter' isroottypedef='true' typecategory='3' timestamp='1553895484' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' valueflags='24'>
+			<FCParameter classname='FCParameter' isroottypedef='true' typecategory='3' timestamp='1607704372' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' valueflags='24'>
 				<subprops>
 					<Name classname='Str'>
 						<value>_notNamed</value>
@@ -1009,7 +1009,7 @@
 			</FCParameter>
 		</typedef>
 		<typedef alwayssavetype='false' additionaltypeflags='0' typelistordernum='14'>
-			<FlexCStepAdditions classname='FCModule' isroottypedef='true' typecategory='3' timestamp='1553895484' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' valueflags='24'>
+			<FlexCStepAdditions classname='FCModule' isroottypedef='true' typecategory='3' timestamp='1607704372' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' valueflags='24'>
 				<subprops>
 					<Call classname='ExternalCall'>
 						<subprops>
@@ -2438,10 +2438,10 @@ Step.compexpr == ""?
 			</NumericLimitTest>
 		</typedef>
 		<typedef alwayssavetype='false' additionaltypeflags='0' typelistordernum='16'>
-			<NoneStepAdditions classname='NoneModule' isroottypedef='true' typecategory='3' timestamp='1553895747' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' valueflags='24'/>
+			<NoneStepAdditions classname='NoneModule' isroottypedef='true' typecategory='3' timestamp='1607704677' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554436' valueflags='24'/>
 		</typedef>
 		<typedef alwayssavetype='false' additionaltypeflags='0' typelistordernum='18'>
-			<PostSubstep classname='StepType' isroottypedef='true' typecategory='1' timestamp='1553895152' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554438' flagsforinstances='4194304' instanceoverrideflags='4194304'>
+			<PostSubstep classname='StepType' isroottypedef='true' typecategory='1' timestamp='1607703962' typeversion='19.0.0.170' typelastmodversion='19.0.0.170' typeminprodversion='19.0.0.0' typeflags='33554438' flagsforinstances='4194304' instanceoverrideflags='4194304'>
 				<subprops>
 					<DescriptionFormat typename='Expression' xsi:type='Expression' classname='ExprValue' flagsforinstances='4718616' instanceoverrideflags='4718616' valueflags='4194328' structureflags='524288'>
 						<value>"%ModuleDescription"</value>
@@ -5571,10 +5571,10 @@ Step.compexpr == ""?
 																<value>100</value>
 															</Nominal>
 															<Low classname='Num'>
-																<value>9</value>
+																<value>1</value>
 															</Low>
 															<High classname='Num'>
-																<value>11</value>
+																<value>20</value>
 															</High>
 															<ThresholdTypeExpr classname='ExprValue'>
 																<value/>
@@ -5615,7 +5615,7 @@ Step.compexpr == ""?
 														<value/>
 													</InBuf>
 													<DataSource classname='ExprValue'>
-														<value>10</value>
+														<value>15</value>
 													</DataSource>
 												</subprops>
 											</Step>
@@ -5972,7 +5972,7 @@ Step.compexpr == ""?
 														<value/>
 													</InBuf>
 													<DataSource classname='ExprValue'>
-														<value>12</value>
+														<value>9</value>
 													</DataSource>
 												</subprops>
 											</Step>
@@ -6645,7 +6645,7 @@ This sequence has only three steps,one of which that fails. It completes after f
 														<value>1</value>
 													</TimerButton>
 													<TimeToWait classname='Num'>
-														<value>5</value>
+														<value>2</value>
 													</TimeToWait>
 													<Position classname='Obj'>
 														<subprops>
