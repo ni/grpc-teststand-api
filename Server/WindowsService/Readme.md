@@ -9,9 +9,9 @@ To run the service, you need to first publish it and then install it. You must h
 ## Publishing the Windows Service
 
 Publish the service using one of the following methods:
-* Open a command prompt in `Examples/Server/WindowsService/` and run the following command:  
+* Option 1: Open a command prompt in `Examples/Server/WindowsService/` and run the following command:  
 `dotnet publish -c Release -r win-x64 --sc -o <Output Directory>`
-* Publish in Visual Studio
+* Option 2: Publish in Visual Studio
     1. Open `Examples/Server/WindowsService/TestExecWindowsService.sln` in Visual Studio. Open the .sln file. Do not select Open Folder.
     2. In the **Solution Configurations** drop-down menu, select **Release**.
     3. Click **Build>Publish Selection**.
@@ -19,15 +19,15 @@ Publish the service using one of the following methods:
     5. When building completes, in the **Publish** tab, click the **Target location** link to find the executable file `TestExecWindowsService.exe`. Note the location of this file, as you will need it in future steps.
     
 
-For more options for "donet publish", see https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-publish.
+For more options for `dotnet publish`, see https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-publish.
 
 ---
 
 ## Installing the Windows Service
-To install the service, run the following command with admin priviledges:  
-`sc.exe create "NI TestStand gRPC Service" binpath= "<PathToExecutable> --contentRoot <DirectoryOfExecutable>"`
+To install the service, run the following command with administrator privileges:  
+`sc.exe create "NI TestStand gRPC Service" binpath= "<file-path-to-TestExecWindowsService.exe> --contentRoot <directory-path-to-TestExecWindowsService.exe>"`
 
-To set the description of the service, run the following command with admin priviledges:  
+To set the description of the service, run the following command with administrator privileges:  
 `sc.exe description "NI TestStand gRPC Service" "Allows remote gRPC clients to run and monitor test sequences."`
 
 Note: The service can take some time to initialize and accept client connections. Any errors that occurred during startup are logged to the Windows Event Log. You can see the log using [Windows Event Viewer](https://learn.microsoft.com/en-us/shows/inside/event-viewer).
@@ -47,7 +47,7 @@ You can now connect to the service using the example client. Refer to [Launch th
 
 ## Removing the Windows Service
 
-To delete the service, run the following command with admin priviledges:  
+To delete the service, run the following command with administrator privileges:  
 `sc.exe delete "NI TestStand gRPC Service"`
 
 

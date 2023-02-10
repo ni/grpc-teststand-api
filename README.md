@@ -26,15 +26,22 @@ Complete the following steps to configure both the client and server machines.
 The UI server is a simple TestStand C# User Interface that uses a gRPC service using ASP.NET Core. The server supports secure connections using server-side TLS or mutual TLS, and non-secure connections.
 
 Complete the following steps to prepare the server to accept requests from the client and run TestStand sequence files.
-1. Configure TestStand Station Options to prevent dialogs from appearing during execution.
+1. Activate the TestStand license to prevent NI License Manager dialogs upon starting the server.
+    1. Open the TestStand Sequence Editor, and wait for the NI License Manager dialog to appear. If no dialog appears, then the TestStand license is activated and you may continue to the next procedure.
+    2. Select **Log in to Activate** or **Begin 7 Day Trial** options to activate the TestStand License.
+    3. Close and reopen the TestStand Sequence Editor.
+    4. You may continue to the next procedure if no NI License Manger dialog appeared after reopening the Sequence Editor. If however a dialog appeared, continue to the next step.
+    5. If you selected **Begin 7 Day Trial**, then in the License Activation dialog select the **Remind Me When They Expire** option.
+    6. Close and reopen the TestStand Sequence Editor and ensure no NI License Manager dialog appears.
+2. Configure TestStand Station Options to prevent dialogs from appearing during execution.
     1. Open the TestStand Sequence Editor, then click **Configure>Station Options** to open the Station Options dialog box.
     2. In **User Manager**, deselect **Check User Privileges**.
     3. In **Execution**, set **On Run-Time Error** to **Run Cleanup**.
     4. In **Time Limits**, ensure that none of the properties are set to **Prompt for Action**.
     5. In **Preferences**, deselect **Prompt to Find Files**.
-2. (Optional) Configure a server-side TLS connection or mutual TLS connection. Refer to [Encrypting Connections to the Server](Docs/Encrypt_Connection.md) for more information. If you do not configure a secure connection, the client and server connection is not secure.
-3. In Visual Studio, open `Server/UI/TestExecServer.sln`.  Open the .sln file. Do not select Open Folder.
-4. Build and run the solution. Type F5 or select the Start Debugging item from the DEBUG menu to run the solution. If you are using 32-bit TestStand, select the x86 Solution Platform before building.
+3. (Optional) Configure a server-side TLS connection or mutual TLS connection. Refer to [Encrypting Connections to the Server](Docs/Encrypt_Connection.md) for more information. If you do not configure a secure connection, the client and server connection is not secure.
+4. In Visual Studio, open `Server/UI/TestExecServer.sln`.  Open the .sln file. Do not select Open Folder.
+5. Build and run the solution. Type F5 or select the Start Debugging item from the DEBUG menu to run the solution. If you are using 32-bit TestStand, select the x86 Solution Platform before building.
 
 ---
 
@@ -104,3 +111,5 @@ After running the sequence file on a server, you can optionally use the TestMoni
 [Overview for gRPC on .NET](https://docs.microsoft.com/en-us/aspnet/core/grpc/?view=aspnetcore-5.0)
 
 [.NET Generic Host in ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host?view=aspnetcore-5.0)
+
+[Docs Folder](Docs)
