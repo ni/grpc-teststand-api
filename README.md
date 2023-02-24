@@ -70,14 +70,12 @@ Complete the following steps to connect the client to the server.
 ## Example Sequence Files
 
 #### Server
-The server application has example files that the client can run. When building the server project, all the files under `Server/ExampleFiles` are copied to the same location as the server executable.  
+The server application has example files that the client can run. When building the server project, all the files under `Server/ExampleFiles` are distributed with the executable.  
 
 To add additional example files, do one or all of the following:
 - Add files to the `Server\ExampleFiles` directory and rebuild the server.
-- Copy files to same location as the server executable.
+- Copy files to the `<server executable>\ExampleFiles` directory.
 - Add files to a directory that is part of TestStand's search directories.
-
-Note: The server enables the search directories option `Application directory` to allow it to find the example files in the server's executable location. 
 
 #### Client
 The client application has a list of files that can be run on the server. The list of files is configured in the `client_config.json` file.
@@ -108,8 +106,12 @@ After running the sequence file on a server, you can optionally use the TestMoni
 ---
 
 ## See Also
-[Overview for gRPC on .NET](https://docs.microsoft.com/en-us/aspnet/core/grpc/?view=aspnetcore-5.0)
+### Example Projects: 
+- [TS gRPC Server Example](Server/UI/Readme.md)
+- [TS gRPC Server Windows Service Example](Server/WindowsService/Readme.md)
+- [TS gRPC Client Example](Client/Readme.md)
 
-[.NET Generic Host in ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host?view=aspnetcore-5.0)
-
-[Docs Folder](Docs)
+### References
+- [Overview for gRPC on .NET](https://docs.microsoft.com/en-us/aspnet/core/grpc/?view=aspnetcore-5.0)
+- [.NET Generic Host in ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host?view=aspnetcore-5.0)
+- [Docs Folder](Docs)

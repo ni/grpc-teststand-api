@@ -111,22 +111,22 @@
     <None Include="..\CommonFiles\certs\server_self_signed_crt.pem" Link="certs\server_self_signed_crt.pem">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\ExampleFiles\LoadError.seq" Link="ExamplesFiles\LoadError.seq">
+    <None Include="..\ExampleFiles\LoadError.seq" Link="ExampleFiles\LoadError.seq">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\ExampleFiles\LoopForever.seq" Link="ExamplesFiles\LoopForever.seq">
+    <None Include="..\ExampleFiles\LoopForever.seq" Link="ExampleFiles\LoopForever.seq">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\ExampleFiles\RunTimeError.seq" Link="ExamplesFiles\RunTimeError.seq">
+    <None Include="..\ExampleFiles\RunTimeError.seq" Link="ExampleFiles\RunTimeError.seq">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\ExampleFiles\StepResults.seq" Link="ExamplesFiles\StepResults.seq">
+    <None Include="..\ExampleFiles\StepResults.seq" Link="ExampleFiles\StepResults.seq">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\ExampleFiles\Test.seq" Link="ExamplesFiles\Test.seq">
+    <None Include="..\ExampleFiles\Test.seq" Link="ExampleFiles\Test.seq">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\ExampleFiles\TraceExecution.seq" Link="ExamplesFiles\TraceExecution.seq">
+    <None Include="..\ExampleFiles\TraceExecution.seq" Link="ExampleFiles\TraceExecution.seq">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
