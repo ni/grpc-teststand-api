@@ -1,0 +1,17 @@
+@import "@ni/nimble-tokens/dist/fonts/css/fonts.css";
+@import "@ni/nimble-components/dist/tokens";
+
+html {
+    width: 100%;
+    height: 100%;
+    margin: 0px;
+    background: $ni-nimble-application-background-color;
+}
+
+h1 {
+    font: $ni-nimble-headline-plus-1-font;
+}
+
+h3 {
+    font: $ni-nimble-body-font;
+}

@@ -99,9 +99,14 @@ After running the sequence file on a server, you can optionally use the TestMoni
 
 | Nuget Package Version | Comment |
 | -- | -- |
-| 15 | The namespace changed from NationalInstruments.TestStand.gRPC.Server to NationalInstruments.TestStand.Grpc.Server|
-| 16 | None |
-| 17 | All services with suffix "Class" had that suffix removed. Their corresponding interfaces were also deleted. For example, EngineClass has been renamed to Engine and IEngine has been deleted. |
+| [15](https://www.nuget.org/packages/NationalInstruments.TestStand.Grpc.Client/0.5.0-dev.15) | The namespace changed from NationalInstruments.TestStand.gRPC.Server to NationalInstruments.TestStand.Grpc.Server|
+| [16](https://www.nuget.org/packages/NationalInstruments.TestStand.Grpc.Client/0.5.0-dev.16) | None |
+| [17](https://www.nuget.org/packages/NationalInstruments.TestStand.Grpc.Client/0.5.0-dev.17) | All services with suffix "Class" had that suffix removed. Their corresponding interfaces were also deleted. For example, EngineClass has been renamed to Engine and IEngine has been deleted. |
+| [18](https://www.nuget.org/packages/NationalInstruments.TestStand.Grpc.Client/0.5.0-dev.18) | None |
+| [19](https://www.nuget.org/packages/NationalInstruments.TestStand.Grpc.Client/0.5.0-dev.19) | None |
+| [20](https://www.nuget.org/packages/NationalInstruments.TestStand.Grpc.Client/0.5.0-dev.20) | None |
+| [21](https://www.nuget.org/packages/NationalInstruments.TestStand.Grpc.Client/0.5.0-dev.21) | None |
+| [22](https://www.nuget.org/packages/NationalInstruments.TestStand.Grpc.Client/0.5.0-dev.22) | Wrappers for all array parameters have been created. The wrappers have the name *\<ObjectType\>Collection*. To pass a non-null array, an instance of the collection needs to be created and populated. See Arrays section in [APIMapping](Docs/APIMapping.md#arrays) document. |
 
 ---
 

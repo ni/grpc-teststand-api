@@ -75,10 +75,14 @@ namespace TestExecServer
         // flag that will be set to true if the user tries to shut down windows
         private bool _sessionEnding = false;
 
-        public MainForm(bool isHeadless)
+        private readonly string[] _args;
+
+        public MainForm(bool isHeadless, string[] args)
         {
             // Required for Windows Form Designer support
             InitializeComponent();
+
+            _args = args;
 
             Text = WindowTitle;
 
@@ -445,7 +449,7 @@ namespace TestExecServer
             Application.SetHighDpiMode(HighDpiMode.DpiUnaware);
 
             bool isHeadless = Array.Exists(args, arg => string.Equals(arg, "/headless", StringComparison.OrdinalIgnoreCase));
-            var form = new MainForm(isHeadless);
+            var form = new MainForm(isHeadless, args);
 
             // Specify an action to perform if waiting on a client event reply in the GUI thread. This is optional. It will improve UI responsiveness
             // of the server app when clients go unresponsive and a message at the bottom left of the main form will inform a user who is interacting
@@ -489,8 +493,6 @@ namespace TestExecServer
                     Application.Exit();
                 });
             };
-
-            GrpcServer.Start(args);  // start grpc server
 
             ApplicationWrapper.Run(form);
         }
@@ -545,6 +547,12 @@ namespace TestExecServer
                 ConnectionFactory.ServerGlobalScope.ToInstanceId(axExecutionViewMgr.GetOcx(), true, "ExecutionViewMgr");
 
                 axApplicationMgr.Start();   // start up the TestStand User Interface Components.
+
+                // create all grpc-api objects in the UI thread in to make sure that any UI objects (Label, SequenceView...) are created in the UI thread
+                ConnectionFactory.ObjectCreationDelegate = (Action objectCreator, Type objectType) => this.Invoke(objectCreator);
+
+                // Start the gRPC server after the TestStand application is fully initialized..
+                GrpcServer.Start(_args);
             }
             catch (Exception theException)
             {

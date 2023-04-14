@@ -1,0 +1,38 @@
+syntax = "proto3";
+package ni.teststand.api.grpc.techpreview;
+
+option csharp_namespace = "NationalInstruments.TestStand.API.Grpc";
+option go_package = "tsgrpc";
+option java_multiple_files = true;
+option java_outer_classname = "TestStandAPIProto";
+option java_package = "com.ni.teststand.api.grpc.techpreview";
+option objc_class_prefix = "TAG";
+option php_namespace = "NI\\TestStand\\API\\Grpc";
+option ruby_package = "NI::TestStand::API::Grpc";
+
+message ConstantValueRequest {
+}
+
+message ObjectInstance {
+  string id = 1;
+}
+
+message IFontDispInstance {
+  string id = 1;
+}
+
+message IPictureDispInstance {
+  string id = 1;
+}
+
+message IPictureInstance {
+  string id = 1;
+}
+
+message int32Response {
+  int32 return_value = 1;
+}
+
+message stringResponse {
+  string return_value = 1;
+}

@@ -51,6 +51,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Grpc.Utilities\Grpc.Utilities.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="client_config.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

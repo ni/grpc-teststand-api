@@ -58,7 +58,7 @@
   <ItemGroup>
     <PackageReference Include="Grpc.AspNetCore" Version="2.48.0" />
     <PackageReference Include="Grpc.AspNetCore.Web" Version="2.48.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.Certificate" Version="5.0.17" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Certificate" Version="6.0.9" />
     <PackageReference Include="Microsoft.DotNet.UpgradeAssistant.Extensions.Default.Analyzers" Version="0.3.246501">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
@@ -67,7 +67,6 @@
     <PackageReference Include="NationalInstruments.TestStand.gRPC.Server" Version="0.5.0-*" />
   </ItemGroup>
 	<ItemGroup>
-		<Compile Include="..\CommonFiles\ServerConfigurationParser.cs" Link="ServerConfigurationParser.cs" />
 		<Compile Include="..\CommonFiles\GrpcServerBase.cs" Link="GrpcServerBase.cs" />
 	</ItemGroup>
   <ItemGroup>
@@ -77,6 +76,9 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\PublishProfiles\" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Grpc.Utilities\Grpc.Utilities.csproj" />
   </ItemGroup>
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
 	<Exec Command="xcopy /I /Y ..\CommonFiles\certs $(OutDir)\certs&#xD;&#xA;xcopy /I /Y ..\ExampleFiles $(OutDir)" />

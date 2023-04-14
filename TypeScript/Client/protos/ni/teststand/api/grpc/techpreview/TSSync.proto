@@ -1,0 +1,1410 @@
+///// THIS FILE WAS AUTO GENERATED ON 03/07/2023 10:04:48 /////
+
+syntax = "proto3";
+package ni.teststand.api.grpc.techpreview;
+option csharp_namespace = "TSSync.Grpc";
+option go_package = "tsgrpc";
+option java_multiple_files = true;
+option java_outer_classname = "TSSyncProto";
+option java_package = "com.ni.teststand.api.grpc.techpreview";
+option objc_class_prefix = "NIG";
+option php_namespace = "TSSync\\Grpc";
+option ruby_package = "TSSync::Grpc";
+
+import "ni/teststand/api/grpc/techpreview/common_types_api.proto";
+
+// SyncManager
+//
+service SyncManager {
+  // Service: SyncManager
+  //
+  rpc SyncManager(SyncManager_SyncManagerRequest) returns (SyncManager_SyncManagerResponse);
+
+  // Method: ReleaseServerOnDestruct
+  //
+  rpc ReleaseServerOnDestruct(SyncManager_ReleaseServerOnDestructRequest) returns (SyncManager_ReleaseServerOnDestructResponse);
+  
+  
+  // Method: GetSyncObject
+  //
+  rpc GetSyncObject(SyncManager_GetSyncObjectRequest) returns (SyncManager_GetSyncObjectResponse);
+  
+  
+  // Method: IsAlive
+  //
+  rpc IsAlive(SyncManager_IsAliveRequest) returns (SyncManager_IsAliveResponse);
+  
+  
+  // Method: RecordThreadWaitingForLockMutex
+  //
+  rpc RecordThreadWaitingForLockMutex(SyncManager_RecordThreadWaitingForLockMutexRequest) returns (SyncManager_RecordThreadWaitingForLockMutexResponse);
+  
+  
+  // Method: RecordThreadNolongerWaitingForLockMutex
+  //
+  rpc RecordThreadNolongerWaitingForLockMutex(SyncManager_RecordThreadNolongerWaitingForLockMutexRequest) returns (SyncManager_RecordThreadNolongerWaitingForLockMutexResponse);
+  
+  
+  // Method: GetLockMutexThreadIsWaitingFor
+  //
+  rpc GetLockMutexThreadIsWaitingFor(SyncManager_GetLockMutexThreadIsWaitingForRequest) returns (SyncManager_GetLockMutexThreadIsWaitingForResponse);
+  
+  
+  // Method: GetMutexOwnerInfo
+  //
+  rpc GetMutexOwnerInfo(SyncManager_GetMutexOwnerInfoRequest) returns (SyncManager_GetMutexOwnerInfoResponse);
+  
+  
+  // Method: LogAction
+  //
+  rpc LogAction(SyncManager_LogActionRequest) returns (SyncManager_LogActionResponse);
+  
+  
+  // Method: BeginLogging
+  //
+  rpc BeginLogging(SyncManager_BeginLoggingRequest) returns (SyncManager_BeginLoggingResponse);
+  
+  
+  // Method: EndLogging
+  //
+  rpc EndLogging(SyncManager_EndLoggingRequest) returns (SyncManager_EndLoggingResponse);
+  
+  
+  // Method: Sleep
+  //
+  rpc Sleep(SyncManager_SleepRequest) returns (SyncManager_SleepResponse);
+  
+  
+
+  // Property: MachineID
+  //
+  rpc Get_MachineID(SyncManager_Get_MachineIDRequest) returns (SyncManager_Get_MachineIDResponse);
+  
+  
+  // Property: ProcessID
+  //
+  rpc Get_ProcessID(SyncManager_Get_ProcessIDRequest) returns (SyncManager_Get_ProcessIDResponse);
+  
+  
+  // Property: LoggingEnabled
+  //
+  rpc Get_LoggingEnabled(SyncManager_Get_LoggingEnabledRequest) returns (SyncManager_Get_LoggingEnabledResponse);
+  
+  
+  // Property: LoggingOutputMessageCategoryName
+  //
+  rpc Get_LoggingOutputMessageCategoryName(SyncManager_Get_LoggingOutputMessageCategoryNameRequest) returns (SyncManager_Get_LoggingOutputMessageCategoryNameResponse);
+  
+  
+}
+message SyncManagerInstance {
+  // Specifies the handle of the SyncManager instance in the server.
+  string id = 1;
+}
+message SyncManager_SyncManagerRequest {
+}
+
+message SyncManager_SyncManagerResponse {
+  // The return type of the SyncManager object.
+  SyncManagerInstance returnValue = 1;
+}
+
+message SyncManager_ReleaseServerOnDestructRequest {
+  // The id of the SyncManager object.
+  SyncManagerInstance instance = 1;
+  ObjectInstance serverToRelease = 2;
+}
+
+message SyncManager_ReleaseServerOnDestructResponse {
+}
+
+message SyncManager_GetSyncObjectRequest {
+  // The id of the SyncManager object.
+  SyncManagerInstance instance = 1;
+  string Name = 2;
+  SyncObjTypes syncObjType = 3;
+}
+
+message SyncManager_GetSyncObjectResponse {
+  ObjectInstance returnValue = 1;
+}
+
+message SyncManager_IsAliveRequest {
+  // The id of the SyncManager object.
+  SyncManagerInstance instance = 1;
+}
+
+message SyncManager_IsAliveResponse {
+  bool returnValue = 1;
+}
+
+message SyncManager_RecordThreadWaitingForLockMutexRequest {
+  // The id of the SyncManager object.
+  SyncManagerInstance instance = 1;
+  string threadId = 2;
+  string threadDisplayName = 3;
+  string mutexName = 4;
+  SyncManagerInstance mutexSyncMgr = 5;
+}
+
+message SyncManager_RecordThreadWaitingForLockMutexResponse {
+}
+
+message SyncManager_RecordThreadNolongerWaitingForLockMutexRequest {
+  // The id of the SyncManager object.
+  SyncManagerInstance instance = 1;
+  string threadId = 2;
+}
+
+message SyncManager_RecordThreadNolongerWaitingForLockMutexResponse {
+}
+
+message SyncManager_GetLockMutexThreadIsWaitingForRequest {
+  // The id of the SyncManager object.
+  SyncManagerInstance instance = 1;
+  string threadId = 2;
+}
+
+message SyncManager_GetLockMutexThreadIsWaitingForResponse {
+  string mutexName = 1;
+  SyncManagerInstance mutexSyncMgr = 2;
+}
+
+message SyncManager_GetMutexOwnerInfoRequest {
+  // The id of the SyncManager object.
+  SyncManagerInstance instance = 1;
+  string mutexName = 2;
+}
+
+message SyncManager_GetMutexOwnerInfoResponse {
+  string threadId = 1;
+  string threadDisplayName = 2;
+  SyncManagerInstance homeSyncMgr = 3;
+}
+
+message SyncManager_LogActionRequest {
+  // The id of the SyncManager object.
+  SyncManagerInstance instance = 1;
+  string SynchronizationMechanism = 2;
+  ObjectInstance sequenceContextObj = 3;
+  string threadId = 4;
+  string threadDisplayName = 5;
+  string Name = 6;
+  SyncStates syncState = 7;
+  string operation = 8;
+  double timeout = 9;
+  bool postMessage = 10;
+  ObjectInstance reserved = 11;
+}
+
+message SyncManager_LogActionResponse {
+  ObjectInstance returnValue = 1;
+}
+
+message SyncManager_BeginLoggingRequest {
+  // The id of the SyncManager object.
+  SyncManagerInstance instance = 1;
+}
+
+message SyncManager_BeginLoggingResponse {
+  int32 returnValue = 1;
+}
+
+message SyncManager_EndLoggingRequest {
+  // The id of the SyncManager object.
+  SyncManagerInstance instance = 1;
+}
+
+message SyncManager_EndLoggingResponse {
+  int32 returnValue = 1;
+}
+
+message SyncManager_SleepRequest {
+  // The id of the SyncManager object.
+  SyncManagerInstance instance = 1;
+  double timeInSeconds = 2;
+}
+
+message SyncManager_SleepResponse {
+}
+
+message SyncManager_Get_MachineIDRequest {
+  // The id of the SyncManager object.
+  SyncManagerInstance instance = 1;
+}
+
+message SyncManager_Get_MachineIDResponse {
+  string returnValue = 1;
+}
+
+message SyncManager_Get_ProcessIDRequest {
+  // The id of the SyncManager object.
+  SyncManagerInstance instance = 1;
+}
+
+message SyncManager_Get_ProcessIDResponse {
+  int32 returnValue = 1;
+}
+
+message SyncManager_Get_LoggingEnabledRequest {
+  // The id of the SyncManager object.
+  SyncManagerInstance instance = 1;
+}
+
+message SyncManager_Get_LoggingEnabledResponse {
+  bool returnValue = 1;
+}
+
+message SyncManager_Get_LoggingOutputMessageCategoryNameRequest {
+  // The id of the SyncManager object.
+  SyncManagerInstance instance = 1;
+}
+
+message SyncManager_Get_LoggingOutputMessageCategoryNameResponse {
+  string returnValue = 1;
+}
+
+// Semaphore
+//
+service Semaphore {
+  // Method: AcquireSemaphore
+  //
+  rpc AcquireSemaphore(Semaphore_AcquireSemaphoreRequest) returns (Semaphore_AcquireSemaphoreResponse);
+  
+  
+  // Method: ReleaseSemaphore
+  //
+  rpc ReleaseSemaphore(Semaphore_ReleaseSemaphoreRequest) returns (Semaphore_ReleaseSemaphoreResponse);
+  
+  
+  // Method: GetInfo
+  //
+  rpc GetInfo(Semaphore_GetInfoRequest) returns (Semaphore_GetInfoResponse);
+  
+  
+  // Method: ReleaseSemaphoreEx
+  //
+  rpc ReleaseSemaphoreEx(Semaphore_ReleaseSemaphoreExRequest) returns (Semaphore_ReleaseSemaphoreExResponse);
+  
+  
+
+  // Property: Name
+  //
+  rpc Get_Name(Semaphore_Get_NameRequest) returns (Semaphore_Get_NameResponse);
+  
+  
+}
+message SemaphoreInstance {
+  // Specifies the handle of the Semaphore instance in the server.
+  string id = 1;
+}
+message Semaphore_AcquireSemaphoreRequest {
+  // The id of the Semaphore object.
+  SemaphoreInstance instance = 1;
+  double timeoutInSeconds = 2;
+  ObjectInstance sequenceContextObj = 3;
+  bool processMsgs = 4;
+}
+
+message Semaphore_AcquireSemaphoreResponse {
+  WaitResult waitRes = 1;
+}
+
+message Semaphore_ReleaseSemaphoreRequest {
+  // The id of the Semaphore object.
+  SemaphoreInstance instance = 1;
+}
+
+message Semaphore_ReleaseSemaphoreResponse {
+}
+
+message Semaphore_GetInfoRequest {
+  // The id of the Semaphore object.
+  SemaphoreInstance instance = 1;
+}
+
+message Semaphore_GetInfoResponse {
+  int32 numThreadsWaitingToAcquire = 1;
+  int32 currentCount = 2;
+  int32 initialCount = 3;
+  int32 maxCount = 4;
+}
+
+message Semaphore_ReleaseSemaphoreExRequest {
+  // The id of the Semaphore object.
+  SemaphoreInstance instance = 1;
+  ObjectInstance sequenceContextObj = 2;
+  string threadId = 3;
+}
+
+message Semaphore_ReleaseSemaphoreExResponse {
+}
+
+message Semaphore_Get_NameRequest {
+  // The id of the Semaphore object.
+  SemaphoreInstance instance = 1;
+}
+
+message Semaphore_Get_NameResponse {
+  string returnValue = 1;
+}
+
+// AutoReleaser
+//
+service AutoReleaser {
+  // Method: EarlyRelease
+  //
+  rpc EarlyRelease(AutoReleaser_EarlyReleaseRequest) returns (AutoReleaser_EarlyReleaseResponse);
+  
+  
+  // Method: ReleasePending
+  //
+  rpc ReleasePending(AutoReleaser_ReleasePendingRequest) returns (AutoReleaser_ReleasePendingResponse);
+  
+  
+  // Method: EarlyReleaseEx
+  //
+  rpc EarlyReleaseEx(AutoReleaser_EarlyReleaseExRequest) returns (AutoReleaser_EarlyReleaseExResponse);
+  
+  
+  // Method: SetReleaserThreadId
+  //
+  rpc SetReleaserThreadId(AutoReleaser_SetReleaserThreadIdRequest) returns (AutoReleaser_SetReleaserThreadIdResponse);
+  
+  
+}
+message AutoReleaserInstance {
+  // Specifies the handle of the AutoReleaser instance in the server.
+  string id = 1;
+}
+message AutoReleaser_EarlyReleaseRequest {
+  // The id of the AutoReleaser object.
+  AutoReleaserInstance instance = 1;
+}
+
+message AutoReleaser_EarlyReleaseResponse {
+}
+
+message AutoReleaser_ReleasePendingRequest {
+  // The id of the AutoReleaser object.
+  AutoReleaserInstance instance = 1;
+}
+
+message AutoReleaser_ReleasePendingResponse {
+  bool returnValue = 1;
+}
+
+message AutoReleaser_EarlyReleaseExRequest {
+  // The id of the AutoReleaser object.
+  AutoReleaserInstance instance = 1;
+  ObjectInstance sequenceContextObj = 2;
+}
+
+message AutoReleaser_EarlyReleaseExResponse {
+}
+
+message AutoReleaser_SetReleaserThreadIdRequest {
+  // The id of the AutoReleaser object.
+  AutoReleaserInstance instance = 1;
+  string threadId = 2;
+}
+
+message AutoReleaser_SetReleaserThreadIdResponse {
+}
+
+// Mutex
+//
+service Mutex {
+  // Method: GetInfo
+  //
+  rpc GetInfo(Mutex_GetInfoRequest) returns (Mutex_GetInfoResponse);
+  
+  
+  // Method: EarlyUnlockMutex
+  //
+  rpc EarlyUnlockMutex(Mutex_EarlyUnlockMutexRequest) returns (Mutex_EarlyUnlockMutexResponse);
+  
+  
+  // Method: LockMutexGroup
+  //
+  rpc LockMutexGroup(Mutex_LockMutexGroupRequest) returns (Mutex_LockMutexGroupResponse);
+  
+  
+  // Method: GetSavedOwnerInfo
+  //
+  rpc GetSavedOwnerInfo(Mutex_GetSavedOwnerInfoRequest) returns (Mutex_GetSavedOwnerInfoResponse);
+  
+  
+  // Method: FinalizeForGroupLock
+  //
+  rpc FinalizeForGroupLock(Mutex_FinalizeForGroupLockRequest) returns (Mutex_FinalizeForGroupLockResponse);
+  
+  
+  // Method: GetInfoEx
+  //
+  rpc GetInfoEx(Mutex_GetInfoExRequest) returns (Mutex_GetInfoExResponse);
+  
+  
+  // Method: EarlyUnlockMutexEx
+  //
+  rpc EarlyUnlockMutexEx(Mutex_EarlyUnlockMutexExRequest) returns (Mutex_EarlyUnlockMutexExResponse);
+  
+  
+  // Method: LockMutexGroupEx
+  //
+  rpc LockMutexGroupEx(Mutex_LockMutexGroupExRequest) returns (Mutex_LockMutexGroupExResponse);
+  
+  
+
+  // Property: Name
+  //
+  rpc Get_Name(Mutex_Get_NameRequest) returns (Mutex_Get_NameResponse);
+  
+  
+}
+message MutexInstance {
+  // Specifies the handle of the Mutex instance in the server.
+  string id = 1;
+}
+message Mutex_GetInfoRequest {
+  // The id of the Mutex object.
+  MutexInstance instance = 1;
+}
+
+message Mutex_GetInfoResponse {
+  int32 numThreadsWaitingToLock = 1;
+}
+
+message Mutex_EarlyUnlockMutexRequest {
+  // The id of the Mutex object.
+  MutexInstance instance = 1;
+  string threadId = 2;
+}
+
+message Mutex_EarlyUnlockMutexResponse {
+}
+
+message Mutex_LockMutexGroupRequest {
+  // The id of the Mutex object.
+  MutexInstance instance = 1;
+  repeated MutexInstance mutexArray = 2;
+  string threadId = 3;
+  string threadDisplayName = 4;
+  SyncManagerInstance homeSyncMgr = 5;
+  double timeoutInSeconds = 6;
+  ObjectInstance sequenceContextObj = 7;
+  bool processMsgs = 8;
+}
+
+message Mutex_LockMutexGroupResponse {
+  repeated ObjectInstance returnValue = 1;
+  WaitResult waitRes = 2;
+  string deadlockElabMsg = 3;
+}
+
+message Mutex_GetSavedOwnerInfoRequest {
+  // The id of the Mutex object.
+  MutexInstance instance = 1;
+}
+
+message Mutex_GetSavedOwnerInfoResponse {
+  string threadId = 1;
+  string threadDisplayName = 2;
+  SyncManagerInstance homeSyncMgr = 3;
+}
+
+message Mutex_FinalizeForGroupLockRequest {
+  // The id of the Mutex object.
+  MutexInstance instance = 1;
+  SyncManagerInstance homeSyncMgr = 2;
+}
+
+message Mutex_FinalizeForGroupLockResponse {
+}
+
+message Mutex_GetInfoExRequest {
+  // The id of the Mutex object.
+  MutexInstance instance = 1;
+}
+
+message Mutex_GetInfoExResponse {
+  int32 numThreadsWaitingToLock = 1;
+  string threadId = 2;
+  string threadDisplayName = 3;
+}
+
+message Mutex_EarlyUnlockMutexExRequest {
+  // The id of the Mutex object.
+  MutexInstance instance = 1;
+  ObjectInstance sequenceContextObj = 2;
+  string threadId = 3;
+}
+
+message Mutex_EarlyUnlockMutexExResponse {
+}
+
+message Mutex_LockMutexGroupExRequest {
+  // The id of the Mutex object.
+  MutexInstance instance = 1;
+  repeated MutexInstance mutexArray = 2;
+  string threadId = 3;
+  string threadDisplayName = 4;
+  SyncManagerInstance homeSyncMgr = 5;
+  double timeoutInSeconds = 6;
+  ObjectInstance sequenceContextObj = 7;
+  bool processMsgs = 8;
+  int32 options = 9;
+}
+
+message Mutex_LockMutexGroupExResponse {
+  repeated ObjectInstance returnValue = 1;
+  WaitResult waitRes = 2;
+  string deadlockElabMsg = 3;
+}
+
+message Mutex_Get_NameRequest {
+  // The id of the Mutex object.
+  MutexInstance instance = 1;
+}
+
+message Mutex_Get_NameResponse {
+  string returnValue = 1;
+}
+
+// Rendezvous
+//
+service Rendezvous {
+  // Method: Rendezvous
+  //
+  rpc Rendezvous(Rendezvous_RendezvousRequest) returns (Rendezvous_RendezvousResponse);
+  
+  
+  // Method: GetInfo
+  //
+  rpc GetInfo(Rendezvous_GetInfoRequest) returns (Rendezvous_GetInfoResponse);
+  
+  
+
+  // Property: Name
+  //
+  rpc Get_Name(Rendezvous_Get_NameRequest) returns (Rendezvous_Get_NameResponse);
+  
+  
+}
+message RendezvousInstance {
+  // Specifies the handle of the Rendezvous instance in the server.
+  string id = 1;
+}
+message Rendezvous_RendezvousRequest {
+  // The id of the Rendezvous object.
+  RendezvousInstance instance = 1;
+  double timeoutInSeconds = 2;
+  ObjectInstance sequenceContextObj = 3;
+  bool processMsgs = 4;
+}
+
+message Rendezvous_RendezvousResponse {
+  WaitResult waitRes = 1;
+}
+
+message Rendezvous_GetInfoRequest {
+  // The id of the Rendezvous object.
+  RendezvousInstance instance = 1;
+}
+
+message Rendezvous_GetInfoResponse {
+  int32 numThreadsWaiting = 1;
+  int32 rendezvousCount = 2;
+}
+
+message Rendezvous_Get_NameRequest {
+  // The id of the Rendezvous object.
+  RendezvousInstance instance = 1;
+}
+
+message Rendezvous_Get_NameResponse {
+  string returnValue = 1;
+}
+
+// Queue
+//
+service Queue {
+  // Method: Enqueue
+  //
+  rpc Enqueue(Queue_EnqueueRequest) returns (Queue_EnqueueResponse);
+  
+  
+  // Method: Dequeue
+  //
+  rpc Dequeue(Queue_DequeueRequest) returns (Queue_DequeueResponse);
+  
+  
+  // Method: Flush
+  //
+  rpc Flush(Queue_FlushRequest) returns (Queue_FlushResponse);
+  
+  
+  // Method: GetInfo
+  //
+  rpc GetInfo(Queue_GetInfoRequest) returns (Queue_GetInfoResponse);
+  
+  
+  // Method: DequeueMultiple
+  //
+  rpc DequeueMultiple(Queue_DequeueMultipleRequest) returns (Queue_DequeueMultipleResponse);
+  
+  
+  // Method: BeginDequeueForMultiDequeue
+  //
+  rpc BeginDequeueForMultiDequeue(Queue_BeginDequeueForMultiDequeueRequest) returns (Queue_BeginDequeueForMultiDequeueResponse);
+  
+  
+  // Method: DoDequeueForMultiDequeue
+  //
+  rpc DoDequeueForMultiDequeue(Queue_DoDequeueForMultiDequeueRequest) returns (Queue_DoDequeueForMultiDequeueResponse);
+  
+  
+  // Method: EndDequeueForMultiDequeue
+  //
+  rpc EndDequeueForMultiDequeue(Queue_EndDequeueForMultiDequeueRequest) returns (Queue_EndDequeueForMultiDequeueResponse);
+  
+  
+
+  // Property: Name
+  //
+  rpc Get_Name(Queue_Get_NameRequest) returns (Queue_Get_NameResponse);
+  
+  
+}
+message QueueInstance {
+  // Specifies the handle of the Queue instance in the server.
+  string id = 1;
+}
+message Queue_EnqueueRequest {
+  // The id of the Queue object.
+  QueueInstance instance = 1;
+  bool atFront = 2;
+  FullQueueOption fqOption = 3;
+  ObjectInstance newElementPropObj = 4;
+  bool byRef = 5;
+  double timeoutInSeconds = 6;
+  ObjectInstance sequenceContextObj = 7;
+  bool processMsgs = 8;
+}
+
+message Queue_EnqueueResponse {
+  WaitResult waitRes = 1;
+  EnqueueResult enqueueRes = 2;
+}
+
+message Queue_DequeueRequest {
+  // The id of the Queue object.
+  QueueInstance instance = 1;
+  bool removeElement = 2;
+  bool atFront = 3;
+  ObjectInstance destinationPropObj = 4;
+  double timeoutInSeconds = 5;
+  ObjectInstance sequenceContextObj = 6;
+  bool processMsgs = 7;
+}
+
+message Queue_DequeueResponse {
+  WaitResult waitRes = 1;
+}
+
+message Queue_FlushRequest {
+  // The id of the Queue object.
+  QueueInstance instance = 1;
+  ObjectInstance sequenceContextObj = 2;
+  ObjectInstance destQueueElementsArrayPropObj = 3;
+}
+
+message Queue_FlushResponse {
+}
+
+message Queue_GetInfoRequest {
+  // The id of the Queue object.
+  QueueInstance instance = 1;
+  ObjectInstance sequenceContextObj = 2;
+  ObjectInstance destQueueElementsArrayPropObj = 3;
+}
+
+message Queue_GetInfoResponse {
+  int32 numThreadsWaitingToEnqueue = 1;
+  int32 numThreadsWaitingToDequeue = 2;
+  int32 sizeLimit = 3;
+  int32 numElements = 4;
+}
+
+message Queue_DequeueMultipleRequest {
+  // The id of the Queue object.
+  QueueInstance instance = 1;
+  repeated QueueInstance queueArray = 2;
+  bool removeElement = 3;
+  bool atFront = 4;
+  ObjectInstance destinationPropObj = 5;
+  double timeoutInSeconds = 6;
+  ObjectInstance sequenceContextObj = 7;
+  bool processMsgs = 8;
+}
+
+message Queue_DequeueMultipleResponse {
+  WaitResult waitRes = 1;
+  QueueInstance whichQueue = 2;
+  int32 whichQueueOffset = 3;
+}
+
+message Queue_BeginDequeueForMultiDequeueRequest {
+  // The id of the Queue object.
+  QueueInstance instance = 1;
+}
+
+message Queue_BeginDequeueForMultiDequeueResponse {
+  string eventName = 1;
+  int32 operationId = 2;
+}
+
+message Queue_DoDequeueForMultiDequeueRequest {
+  // The id of the Queue object.
+  QueueInstance instance = 1;
+  ObjectInstance sequenceContextObj = 2;
+  bool removeElement = 3;
+  bool atFront = 4;
+  ObjectInstance destinationPropObj = 5;
+  int32 operationId = 6;
+}
+
+message Queue_DoDequeueForMultiDequeueResponse {
+  bool keepWaitingParam = 1;
+}
+
+message Queue_EndDequeueForMultiDequeueRequest {
+  // The id of the Queue object.
+  QueueInstance instance = 1;
+  int32 operationId = 2;
+}
+
+message Queue_EndDequeueForMultiDequeueResponse {
+}
+
+message Queue_Get_NameRequest {
+  // The id of the Queue object.
+  QueueInstance instance = 1;
+}
+
+message Queue_Get_NameResponse {
+  string returnValue = 1;
+}
+
+// Notification
+//
+service Notification {
+  // Method: Set
+  //
+  rpc Set(Notification_SetRequest) returns (Notification_SetResponse);
+  
+  
+  // Method: Clear
+  //
+  rpc Clear(Notification_ClearRequest) returns (Notification_ClearResponse);
+  
+  
+  // Method: Pulse
+  //
+  rpc Pulse(Notification_PulseRequest) returns (Notification_PulseResponse);
+  
+  
+  // Method: Wait
+  //
+  rpc Wait(Notification_WaitRequest) returns (Notification_WaitResponse);
+  
+  
+  // Method: GetInfo
+  //
+  rpc GetInfo(Notification_GetInfoRequest) returns (Notification_GetInfoResponse);
+  
+  
+  // Method: WaitMultiple
+  //
+  rpc WaitMultiple(Notification_WaitMultipleRequest) returns (Notification_WaitMultipleResponse);
+  
+  
+  // Method: BeginWaitForMultiWait
+  //
+  rpc BeginWaitForMultiWait(Notification_BeginWaitForMultiWaitRequest) returns (Notification_BeginWaitForMultiWaitResponse);
+  
+  
+  // Method: DoWaitForMultiWait
+  //
+  rpc DoWaitForMultiWait(Notification_DoWaitForMultiWaitRequest) returns (Notification_DoWaitForMultiWaitResponse);
+  
+  
+  // Method: EndWaitForMultiWait
+  //
+  rpc EndWaitForMultiWait(Notification_EndWaitForMultiWaitRequest) returns (Notification_EndWaitForMultiWaitResponse);
+  
+  
+  // Method: SetEx
+  //
+  rpc SetEx(Notification_SetExRequest) returns (Notification_SetExResponse);
+  
+  
+  // Method: ClearEx
+  //
+  rpc ClearEx(Notification_ClearExRequest) returns (Notification_ClearExResponse);
+  
+  
+  // Method: PulseEx
+  //
+  rpc PulseEx(Notification_PulseExRequest) returns (Notification_PulseExResponse);
+  
+  
+
+  // Property: Name
+  //
+  rpc Get_Name(Notification_Get_NameRequest) returns (Notification_Get_NameResponse);
+  
+  
+}
+message NotificationInstance {
+  // Specifies the handle of the Notification instance in the server.
+  string id = 1;
+}
+message Notification_SetRequest {
+  // The id of the Notification object.
+  NotificationInstance instance = 1;
+  ObjectInstance dataPropObj = 2;
+  bool byRef = 3;
+  bool autoClear = 4;
+}
+
+message Notification_SetResponse {
+}
+
+message Notification_ClearRequest {
+  // The id of the Notification object.
+  NotificationInstance instance = 1;
+}
+
+message Notification_ClearResponse {
+}
+
+message Notification_PulseRequest {
+  // The id of the Notification object.
+  NotificationInstance instance = 1;
+  ObjectInstance dataPropObj = 2;
+  bool byRef = 3;
+  bool applyToAllWaiters = 4;
+}
+
+message Notification_PulseResponse {
+}
+
+message Notification_WaitRequest {
+  // The id of the Notification object.
+  NotificationInstance instance = 1;
+  ObjectInstance destinationPropObj = 2;
+  double timeoutInSeconds = 3;
+  ObjectInstance sequenceContextObj = 4;
+  bool processMsgs = 5;
+}
+
+message Notification_WaitResponse {
+  WaitResult waitRes = 1;
+}
+
+message Notification_GetInfoRequest {
+  // The id of the Notification object.
+  NotificationInstance instance = 1;
+  ObjectInstance sequenceContextObj = 2;
+  ObjectInstance destinationPropObj = 3;
+}
+
+message Notification_GetInfoResponse {
+  int32 numThreadsWaiting = 1;
+  bool isSet = 2;
+  bool isAutoClear = 3;
+}
+
+message Notification_WaitMultipleRequest {
+  // The id of the Notification object.
+  NotificationInstance instance = 1;
+  repeated NotificationInstance notificationArray = 2;
+  ObjectInstance destinationPropObj = 3;
+  double timeoutInSeconds = 4;
+  ObjectInstance sequenceContextObj = 5;
+  bool processMsgs = 6;
+}
+
+message Notification_WaitMultipleResponse {
+  WaitResult waitRes = 1;
+  NotificationInstance whichNotification = 2;
+  int32 whichNotificationOffset = 3;
+}
+
+message Notification_BeginWaitForMultiWaitRequest {
+  // The id of the Notification object.
+  NotificationInstance instance = 1;
+}
+
+message Notification_BeginWaitForMultiWaitResponse {
+  string eventName = 1;
+  int32 operationId = 2;
+  int32 waitId = 3;
+}
+
+message Notification_DoWaitForMultiWaitRequest {
+  // The id of the Notification object.
+  NotificationInstance instance = 1;
+  ObjectInstance sequenceContextObj = 2;
+  ObjectInstance destinationPropObj = 3;
+  int32 operationId = 4;
+  int32 waitId = 5;
+}
+
+message Notification_DoWaitForMultiWaitResponse {
+  bool keepWaitingParam = 1;
+}
+
+message Notification_EndWaitForMultiWaitRequest {
+  // The id of the Notification object.
+  NotificationInstance instance = 1;
+  int32 operationId = 2;
+  int32 waitId = 3;
+}
+
+message Notification_EndWaitForMultiWaitResponse {
+}
+
+message Notification_SetExRequest {
+  // The id of the Notification object.
+  NotificationInstance instance = 1;
+  ObjectInstance sequenceContextObj = 2;
+  ObjectInstance dataPropObj = 3;
+  bool byRef = 4;
+  bool autoClear = 5;
+}
+
+message Notification_SetExResponse {
+}
+
+message Notification_ClearExRequest {
+  // The id of the Notification object.
+  NotificationInstance instance = 1;
+  ObjectInstance sequenceContextObj = 2;
+}
+
+message Notification_ClearExResponse {
+}
+
+message Notification_PulseExRequest {
+  // The id of the Notification object.
+  NotificationInstance instance = 1;
+  ObjectInstance sequenceContextObj = 2;
+  ObjectInstance dataPropObj = 3;
+  bool byRef = 4;
+  bool applyToAllWaiters = 5;
+}
+
+message Notification_PulseExResponse {
+}
+
+message Notification_Get_NameRequest {
+  // The id of the Notification object.
+  NotificationInstance instance = 1;
+}
+
+message Notification_Get_NameResponse {
+  string returnValue = 1;
+}
+
+// Batch
+//
+service Batch {
+  // Method: AddThread
+  //
+  rpc AddThread(Batch_AddThreadRequest) returns (Batch_AddThreadResponse);
+  
+  
+  // Method: RemoveThread
+  //
+  rpc RemoveThread(Batch_RemoveThreadRequest) returns (Batch_RemoveThreadResponse);
+  
+  
+  // Method: EnterSynchronizedSection
+  //
+  rpc EnterSynchronizedSection(Batch_EnterSynchronizedSectionRequest) returns (Batch_EnterSynchronizedSectionResponse);
+  
+  
+  // Method: ExitSynchronizedSection
+  //
+  rpc ExitSynchronizedSection(Batch_ExitSynchronizedSectionRequest) returns (Batch_ExitSynchronizedSectionResponse);
+  
+  
+  // Method: ExitAllSynchronizedSectionsInCurrentSequence
+  //
+  rpc ExitAllSynchronizedSectionsInCurrentSequence(Batch_ExitAllSynchronizedSectionsInCurrentSequenceRequest) returns (Batch_ExitAllSynchronizedSectionsInCurrentSequenceResponse);
+  
+  
+  // Method: GetInfo
+  //
+  rpc GetInfo(Batch_GetInfoRequest) returns (Batch_GetInfoResponse);
+  
+  
+  // Method: GetBatchThreads
+  //
+  rpc GetBatchThreads(Batch_GetBatchThreadsRequest) returns (Batch_GetBatchThreadsResponse);
+  
+  
+  // Method: ReportRTEOccurred
+  //
+  rpc ReportRTEOccurred(Batch_ReportRTEOccurredRequest) returns (Batch_ReportRTEOccurredResponse);
+  
+  
+
+  // Property: Name
+  //
+  rpc Get_Name(Batch_Get_NameRequest) returns (Batch_Get_NameResponse);
+  
+  
+  // Property: DefaultBatchSynchronization
+  //
+  rpc Set_DefaultBatchSynchronization(Batch_Set_DefaultBatchSynchronizationRequest) returns (Batch_Set_DefaultBatchSynchronizationResponse);
+  rpc Get_DefaultBatchSynchronization(Batch_Get_DefaultBatchSynchronizationRequest) returns (Batch_Get_DefaultBatchSynchronizationResponse);
+  
+  
+}
+message BatchInstance {
+  // Specifies the handle of the Batch instance in the server.
+  string id = 1;
+}
+message Batch_AddThreadRequest {
+  // The id of the Batch object.
+  BatchInstance instance = 1;
+  ObjectInstance TSEngineObj = 2;
+  ObjectInstance threadObj = 3;
+  int32 orderNumber = 4;
+}
+
+message Batch_AddThreadResponse {
+}
+
+message Batch_RemoveThreadRequest {
+  // The id of the Batch object.
+  BatchInstance instance = 1;
+  ObjectInstance TSEngineObj = 2;
+  ObjectInstance threadObj = 3;
+}
+
+message Batch_RemoveThreadResponse {
+}
+
+message Batch_EnterSynchronizedSectionRequest {
+  // The id of the Batch object.
+  BatchInstance instance = 1;
+  string sectionName = 2;
+  BatchSyncType batchSyncTypeParam = 3;
+  double timeoutInSeconds = 4;
+  ObjectInstance sequenceContextObj = 5;
+  bool processMsgs = 6;
+}
+
+message Batch_EnterSynchronizedSectionResponse {
+  WaitResult waitRes = 1;
+  bool jumpedToExit = 2;
+}
+
+message Batch_ExitSynchronizedSectionRequest {
+  // The id of the Batch object.
+  BatchInstance instance = 1;
+  string sectionName = 2;
+  double timeoutInSeconds = 3;
+  ObjectInstance sequenceContextObj = 4;
+  bool processMsgs = 5;
+  bool RTEOccurred = 6;
+}
+
+message Batch_ExitSynchronizedSectionResponse {
+  WaitResult waitRes = 1;
+}
+
+message Batch_ExitAllSynchronizedSectionsInCurrentSequenceRequest {
+  // The id of the Batch object.
+  BatchInstance instance = 1;
+  double timeoutInSeconds = 2;
+  ObjectInstance sequenceContextObj = 3;
+  bool processMsgs = 4;
+  bool RTEOccurred = 5;
+}
+
+message Batch_ExitAllSynchronizedSectionsInCurrentSequenceResponse {
+  WaitResult waitRes = 1;
+}
+
+message Batch_GetInfoRequest {
+  // The id of the Batch object.
+  BatchInstance instance = 1;
+}
+
+message Batch_GetInfoResponse {
+  int32 numThreadsWaiting = 1;
+  int32 numThreadsInBatch = 2;
+}
+
+message Batch_GetBatchThreadsRequest {
+  // The id of the Batch object.
+  BatchInstance instance = 1;
+}
+
+message Batch_GetBatchThreadsResponse {
+  repeated ObjectInstance returnValue = 1;
+}
+
+message Batch_ReportRTEOccurredRequest {
+  // The id of the Batch object.
+  BatchInstance instance = 1;
+  ObjectInstance sequenceContextObj = 2;
+}
+
+message Batch_ReportRTEOccurredResponse {
+}
+
+message Batch_Get_NameRequest {
+  // The id of the Batch object.
+  BatchInstance instance = 1;
+}
+
+message Batch_Get_NameResponse {
+  string returnValue = 1;
+}
+
+message Batch_Set_DefaultBatchSynchronizationRequest {
+  // The id of the Batch object.
+  BatchInstance instance = 1;
+  BatchSyncType pVal = 2;
+}
+
+message Batch_Set_DefaultBatchSynchronizationResponse {
+}
+
+message Batch_Get_DefaultBatchSynchronizationRequest {
+  // The id of the Batch object.
+  BatchInstance instance = 1;
+}
+
+message Batch_Get_DefaultBatchSynchronizationResponse {
+  BatchSyncType returnValue = 1;
+}
+
+// SyncObjTypes
+//
+enum SyncObjTypes {
+  // Field: SyncObjType_NotASyncObj
+  //
+  SyncObjType_NotASyncObj = 0;
+  // Field: SyncObjType_Semaphore
+  //
+  SyncObjType_Semaphore = 1;
+  // Field: SyncObjType_Mutex
+  //
+  SyncObjType_Mutex = 2;
+  // Field: SyncObjType_Rendezvous
+  //
+  SyncObjType_Rendezvous = 3;
+  // Field: SyncObjType_Queue
+  //
+  SyncObjType_Queue = 4;
+  // Field: SyncObjType_Notification
+  //
+  SyncObjType_Notification = 5;
+  // Field: SyncObjType_Batch
+  //
+  SyncObjType_Batch = 6;
+}
+
+// SyncStates
+//
+enum SyncStates {
+  // Field: SyncState_None
+  //
+  SyncState_None = 0;
+  // Field: SyncState_Blocked
+  //
+  SyncState_Blocked = 1;
+  // Field: SyncState_InUse
+  //
+  SyncState_InUse = 2;
+  // Field: SyncState_Aborted
+  //
+  SyncState_Aborted = 3;
+  // Field: SyncState_TimedOut
+  //
+  SyncState_TimedOut = 4;
+  // Field: SyncState_Completed
+  //
+  SyncState_Completed = 5;
+}
+
+// WaitResult
+//
+enum WaitResult {
+  // Field: WaitResult_Success
+  //
+  WaitResult_Success = 0;
+  // Field: WaitResult_TimeoutOccurred
+  //
+  WaitResult_TimeoutOccurred = 1;
+  // Field: WaitResult_TerminateOrAbortOccurred
+  //
+  WaitResult_TerminateOrAbortOccurred = 2;
+  // Field: WaitResult_DeadlockDetected
+  //
+  WaitResult_DeadlockDetected = 3;
+}
+
+// FullQueueOption
+//
+enum FullQueueOption {
+  // Field: FullQueueOption_Wait
+  //
+  FullQueueOption_Wait = 0;
+  // Field: FullQueueOption_DiscardFrontElement
+  //
+  FullQueueOption_DiscardFrontElement = 1;
+  // Field: FullQueueOption_DiscardBackElement
+  //
+  FullQueueOption_DiscardBackElement = 2;
+  // Field: FullQueueOption_DoNotEnqueue
+  //
+  FullQueueOption_DoNotEnqueue = 3;
+}
+
+// EnqueueResult
+//
+enum EnqueueResult {
+  // Field: EnqueueResult_Enqueued
+  //
+  EnqueueResult_Enqueued = 0;
+  // Field: EnqueueResult_DiscardedElement
+  //
+  EnqueueResult_DiscardedElement = 1;
+  // Field: EnqueueResult_NotEnqueued
+  //
+  EnqueueResult_NotEnqueued = 2;
+}
+
+// BatchSyncType
+//
+enum BatchSyncType {
+  // Field: BatchSyncType_None
+  //
+  BatchSyncType_None = 0;
+  // Field: BatchSyncType_Serial
+  //
+  BatchSyncType_Serial = 1;
+  // Field: BatchSyncType_Parallel
+  //
+  BatchSyncType_Parallel = 2;
+  // Field: BatchSyncType_OneThreadOnly
+  //
+  BatchSyncType_OneThreadOnly = 3;
+}
+
+// module 
+
+// ResourceUsageOutputMessageSubProperties
+//
+service ResourceUsageOutputMessageSubProperties {
+  // Field: OutputMessageSubProperty_SynchronizationState
+  //
+  rpc Get_OutputMessageSubProperty_SynchronizationState(ConstantValueRequest) returns (stringResponse);
+  // Field: OutputMessageSubProperty_ResourceName
+  //
+  rpc Get_OutputMessageSubProperty_ResourceName(ConstantValueRequest) returns (stringResponse);
+  // Field: OutputMessageSubProperty_SocketIndex
+  //
+  rpc Get_OutputMessageSubProperty_SocketIndex(ConstantValueRequest) returns (stringResponse);
+  // Field: OutputMessageSubProperty_SocketCount
+  //
+  rpc Get_OutputMessageSubProperty_SocketCount(ConstantValueRequest) returns (stringResponse);
+  // Field: OutputMessageSubProperty_TimeoutPeriod
+  //
+  rpc Get_OutputMessageSubProperty_TimeoutPeriod(ConstantValueRequest) returns (stringResponse);
+  // Field: OutputMessageSubProperty_FromProcessModel
+  //
+  rpc Get_OutputMessageSubProperty_FromProcessModel(ConstantValueRequest) returns (stringResponse);
+  // Field: OutputMessageSubProperty_ResourceAlternativeIndex
+  //
+  rpc Get_OutputMessageSubProperty_ResourceAlternativeIndex(ConstantValueRequest) returns (stringResponse);
+  // Field: OutputMessageSubProperty_UseResourceStepDescription
+  //
+  rpc Get_OutputMessageSubProperty_UseResourceStepDescription(ConstantValueRequest) returns (stringResponse);
+  // Field: OutputMessageSubProperty_ThreadId
+  //
+  rpc Get_OutputMessageSubProperty_ThreadId(ConstantValueRequest) returns (stringResponse);
+  // Field: OutputMessageSubProperty_SynchronizationMechanism
+  //
+  rpc Get_OutputMessageSubProperty_SynchronizationMechanism(ConstantValueRequest) returns (stringResponse);
+  // Field: OutputMessageSubProperty_BatchType
+  //
+  rpc Get_OutputMessageSubProperty_BatchType(ConstantValueRequest) returns (stringResponse);
+  // Field: OutputMessageSubProperty_Operation
+  //
+  rpc Get_OutputMessageSubProperty_Operation(ConstantValueRequest) returns (stringResponse);
+  // Field: OutputMessageSubProperty_ExecutionId
+  //
+  rpc Get_OutputMessageSubProperty_ExecutionId(ConstantValueRequest) returns (stringResponse);
+  // Field: OutputMessageSubProperty_ExecutionDisplayName
+  //
+  rpc Get_OutputMessageSubProperty_ExecutionDisplayName(ConstantValueRequest) returns (stringResponse);
+  // Field: OutputMessageSubProperty_ThreadDisplayName
+  //
+  rpc Get_OutputMessageSubProperty_ThreadDisplayName(ConstantValueRequest) returns (stringResponse);
+}
+
+// module 
+
+// SynchronizationMechanism
+//
+service SynchronizationMechanism {
+  // Field: SynchronizationMechanism_Semaphore
+  //
+  rpc Get_SynchronizationMechanism_Semaphore(ConstantValueRequest) returns (stringResponse);
+  // Field: SynchronizationMechanism_Lock
+  //
+  rpc Get_SynchronizationMechanism_Lock(ConstantValueRequest) returns (stringResponse);
+  // Field: SynchronizationMechanism_Rendezvous
+  //
+  rpc Get_SynchronizationMechanism_Rendezvous(ConstantValueRequest) returns (stringResponse);
+  // Field: SynchronizationMechanism_Queue
+  //
+  rpc Get_SynchronizationMechanism_Queue(ConstantValueRequest) returns (stringResponse);
+  // Field: SynchronizationMechanism_Notification
+  //
+  rpc Get_SynchronizationMechanism_Notification(ConstantValueRequest) returns (stringResponse);
+  // Field: SynchronizationMechanism_Batch
+  //
+  rpc Get_SynchronizationMechanism_Batch(ConstantValueRequest) returns (stringResponse);
+  // Field: SynchronizationMechanism_AutoSchedule
+  //
+  rpc Get_SynchronizationMechanism_AutoSchedule(ConstantValueRequest) returns (stringResponse);
+  // Field: SynchronizationMechanism_Wait
+  //
+  rpc Get_SynchronizationMechanism_Wait(ConstantValueRequest) returns (stringResponse);
+}
+
+// module 
+
+// SyncManagerOptions
+//
+enum SyncManagerOptions {
+  SyncManagerOptions_reservedZero = 0;
+  // Field: DoNotLogZeroTimeouts
+  //
+  DoNotLogZeroTimeouts = 1;
+}
+
+///////////////////////// Referenced Types /////////////////////
+
+// Generation of referenced types is disabled.
+

@@ -2,6 +2,7 @@
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using NationalInstruments.TestStand.Grpc.Client.Utilities;
 
 namespace ExampleClient
 {
@@ -39,57 +40,6 @@ namespace ExampleClient
         }
 
         public ClientOptions Options { get; private set; }
-    }
-
-    public class ClientOptions
-    {
-        // 5020 is used to avoid conflicting with NI Services
-        public int Port { get; set; } = 5020;
-
-        public Security Security { get; set; } = new Security();
-
-        [JsonPropertyName("example_files")]
-        public string[] ExampleFiles { get; set; }
-
-        public string ServerCertificatePath { get; set; } = null;
-
-        public string ServerCertificateFriendlyName { get; set; } = null;
-
-        public string ClientCertificatePath { get; set; } = null;
-
-        public string ClientKeyPath { get; set; } = null;
-
-        public string ClientCertificatePFXPath { get; set; } = null;
-
-        public string ClientCertificatePFXPassword => Security.ClientCertificatePFXFilePassword;
-
-
-        public void SetCertificatePaths(string certificatesFolder)
-        {
-            if (!string.IsNullOrEmpty(Security.ServerCertificateFilename))
-            {
-                if (Path.HasExtension(Security.ServerCertificateFilename))
-                {
-                    ServerCertificatePath = Path.Combine(certificatesFolder, Security.ServerCertificateFilename);
-                }
-                else
-                {
-                    ServerCertificateFriendlyName = Security.ServerCertificateFilename;
-                }
-            }
-            if (!string.IsNullOrEmpty(Security.ClientCertificateFilename))
-            {
-                ClientCertificatePath = Path.Combine(certificatesFolder, Security.ClientCertificateFilename);
-            }
-            if (!string.IsNullOrEmpty(Security.ClientKeyFilename))
-            {
-                ClientKeyPath = Path.Combine(certificatesFolder, Security.ClientKeyFilename);
-            }
-            if (!string.IsNullOrEmpty(Security.ClientCertificagePFXFilename))
-            {
-                ClientCertificatePFXPath = Path.Combine(certificatesFolder, Security.ClientCertificagePFXFilename);
-            }
-        }
     }
     
     public class Security
