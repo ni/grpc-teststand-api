@@ -9,19 +9,20 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Grpc.Core;
-using Grpc.Net.Client;
-using NationalInstruments.TestStand.Grpc.Net.Client.OO;  // instance lifetime API
 using NationalInstruments.TestStand.API.Grpc; // TestStand Engine API
+using NationalInstruments.TestStand.Grpc.Client.Utilities;
+using NationalInstruments.TestStand.Grpc.Net.Client.OO;  // instance lifetime API
 using NationalInstruments.TestStand.UI.Grpc;
 using static System.FormattableString;
 using static ExampleClient.Win32Interop;
 
 namespace ExampleClient
 {
-	public partial class Example : Form
+    public partial class Example : Form
 	{
 		public enum ExecutionAction
         {
@@ -30,71 +31,25 @@ namespace ExampleClient
 			Terminate
         }
 
-		const string SequentialModelFilename = "SequentialModel.seq";
-		const string ModelOptionsFileSectionName = "ModelOptions";
-		const string NumberOfTestSocketsPropertyName = "NumTestSockets";
-		const string RunRemoteSequenceFile = "Run Remote Sequence File";
-		const string RunningRemoteSequenceFile = "Running Remote Sequence File";
-		const string ConnectionStatusConnected = "Connected";
-		const string ConnectionStatusDisconnected = "Disconnected";
-		const string ExecutionStateAborted = "Aborted";
-		const string ExecutionStateError = "Error";
-		const string ExecutionStateFailed = "Failed";
-		const string ExecutionStatePassed = "Passed";
-		const string ExecutionStatePaused = "Paused";
-		const string ExecutionStateRunning = "Running...";
-		const string ExecutionStateTerminated = "Terminated";
-		const string ExecutionStateTerminating = "Terminating...";
-		const string StepResultDone = "Done";
-		const string StepResultSkipped = "Skipped";
-		const string NotExecutedSequenceFile = "Not Executed";
-		const string AddGlobal = "Add Global";
-		const string DeleteGlobal = "Delete Global";
-		const string NotConnected = "NotConnected";
-		const string SecureConnection = "SecureConnection";
-		const string NotSecureConnection = "NotSecureConnection";
-
-        const int ColorBoxWidth = 3;
         // For a step result, we need to add a color box before the status. To do this,
         // we need to add the space to the result to draw the color box. ColorBoxSpace
         // defines the space to insert. We nee to add one character to ColorBoxWidth to
         // allow one space between the box and the actual result text.
-        readonly string ColorBoxSpace = string.Format("{0," + (ColorBoxWidth + 1) + "}", "");
-
-		// This is the default TestStand uses in process models.
-		const int DefaultNumberOfTestSockets = 4;
-
-        const int StatusLength = 7;
-		const int IndentOffsetForOneLevel = 4;
-        readonly string IndentSpace = string.Format("{0," + IndentOffsetForOneLevel + "}", "");
+        readonly string ColorBoxSpace = string.Format("{0," + (Constants.ColorBoxWidth + 1) + "}", "");
+        readonly string IndentSpace = string.Format("{0," + Constants.IndentOffsetForOneLevel + "}", "");
 
 		private readonly object _dataLock = new();
 		private int _busyCount = 0;
 		private Cursor _previousCursor;
 
-		private GrpcChannel _gRPCChannel = null;
 		// remember any event loop tasks we start, so we can wait for them to exit when cleaning up
-		private List<Tuple<Task, System.Threading.CancellationTokenSource>> _eventLoops = new List<Tuple<Task, System.Threading.CancellationTokenSource>>();
+		private List<Tuple<Task, System.Threading.CancellationTokenSource>> _eventLoops = new();
 
-		// service clients for the interfaces we might want to use
-		private InstanceLifetime.InstanceLifetimeClient _instanceLifetimeClient;
-		private Engine.EngineClient _engineClient;
-		private Step.StepClient _stepClient;
-		private Execution.ExecutionClient _executionClient;
-		private Report.ReportClient _reportClient;
-		private Thread.ThreadClient _threadClient;
-		private SequenceContext.SequenceContextClient _sequenceContextClient;
-		private PropertyObject.PropertyObjectClient _propertyObjectClient;
-		private PropertyObjectFile.PropertyObjectFileClient _propertyObjectFileClient;
-		private StationOptions.StationOptionsClient _stationOptionsClient;
-		private ApplicationMgr.ApplicationMgrClient _applicationMgrClient;
-		private Executions.ExecutionsClient _executionsClient;
-		private UIMessage.UIMessageClient _uiMessageClient = null;
-		private StepProperties.StepPropertiesClient _stepPropertiesClient = null;
+		private readonly Clients _clients = new();
 
 		private readonly Dictionary<string, Stream> _imageList = new();
 
-		private ErrorProvider _errorProvider;
+		private readonly ErrorProvider _errorProvider;
 		private bool _isConnected = false;
 		private string _serverAddress;
 		private string _nonSequentialProcessModelName = null;
@@ -102,18 +57,18 @@ namespace ExampleClient
 		// remember some objects we create on the server for later use
 		private EngineInstance _engine = null;
 		private ExecutionInstance _activeExecution;
-		private HashSet<string> _reportLocationsOnServer = new(StringComparer.OrdinalIgnoreCase);
+		private CancellationTokenSource _activeExecutionCancellationTokenSource; 
+		private readonly HashSet<string> _reportLocationsOnServer = new(StringComparer.OrdinalIgnoreCase);
 
 		private int _valueForSelectedItemIndex = -1;
-		private ClientOptions _clientOptions;
+		private readonly ClientOptions _clientOptions;
 		private bool _connectionIsSecured;
-		private CreateChannelHelper _channelHelper;
 
 		private ToolTipEx _numTestSocketsNumericUpDownToolTip;
 		private ToolTipEx _sequenceFileNameComboBoxToolTip;
 
 		private int _numberOfTestSocketsExecuting = 0;
-		private HashSet<string> _executionIdsToTrace = new();
+		private readonly HashSet<string> _executionIdsToTrace = new();
 
 		public Example(ClientOptions options)
 		{
@@ -128,19 +83,17 @@ namespace ExampleClient
 			UpdateTraceMessagesControls();
 
 			_errorProvider = new ErrorProvider();
-			_errorProvider.Icon = new Icon(_imageList[ExecutionStateError]);
+			_errorProvider.Icon = new Icon(_imageList[Constants.ExecutionStateError]);
 			_errorProvider.SetIconAlignment(_serverAddressTextBox, ErrorIconAlignment.MiddleLeft);
 			_errorProvider.SetIconPadding(_serverAddressTextBox, 4);
 
-			_connectionTypePictureBox.Image = new Bitmap(_imageList[NotConnected]);
-			_connectionStatusDescriptionLabel.Text = ConnectionStatusDisconnected;
-			_connectionStatusPictureBox.Image = new Bitmap(_imageList[ConnectionStatusDisconnected]);
+			_connectionTypePictureBox.Image = new Bitmap(_imageList[Constants.NotConnected]);
+			_connectionStatusDescriptionLabel.Text = Constants.ConnectionStatusDisconnected;
+			_connectionStatusPictureBox.Image = new Bitmap(_imageList[Constants.ConnectionStatusDisconnected]);
 			_executionStateDescriptionLabel.Text = string.Empty;
 
-			_addGlobalButton.Image = new Bitmap(_imageList[AddGlobal]);
-			_deleteGlobalButton.Image = new Bitmap(_imageList[DeleteGlobal]);
-
-			_channelHelper = new CreateChannelHelper();
+			_addGlobalButton.Image = new Bitmap(_imageList[Constants.AddGlobal]);
+			_deleteGlobalButton.Image = new Bitmap(_imageList[Constants.DeleteGlobal]);
 		}
 
 		private void AppendPortNumberToAddress()
@@ -150,21 +103,21 @@ namespace ExampleClient
 
 		private void InitializeImageList()
 		{
-			_imageList[ConnectionStatusConnected] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.StatusConnected.png");
-			_imageList[ConnectionStatusDisconnected] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.StatusDisconnected.png");
-			_imageList[ExecutionStateAborted] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.ExecutionAborted.ico");
-			_imageList[ExecutionStateError] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.ExecutionError.ico");
-			_imageList[ExecutionStateFailed] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.ExecutionFailed.ico");
-			_imageList[ExecutionStatePassed] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.ExecutionPassed.ico");
-			_imageList[ExecutionStatePaused] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.ExecutionPaused.ico");
-			_imageList[ExecutionStateRunning] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.ExecutionRunning.ico");
-			_imageList[ExecutionStateTerminated] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.ExecutionTerminated.ico");
-			_imageList[ExecutionStateTerminating] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.ExecutionTerminating.ico");
-			_imageList[AddGlobal] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.Add.ico");
-			_imageList[DeleteGlobal] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.Delete.ico");
-			_imageList[NotConnected] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.NotConnected.png");
-			_imageList[SecureConnection] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.SecuredConnection.png");
-			_imageList[NotSecureConnection] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.NotSecuredConnection.png");
+			_imageList[Constants.ConnectionStatusConnected] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.StatusConnected.png");
+			_imageList[Constants.ConnectionStatusDisconnected] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.StatusDisconnected.png");
+			_imageList[Constants.ExecutionStateAborted] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.ExecutionAborted.ico");
+			_imageList[Constants.ExecutionStateError] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.ExecutionError.ico");
+			_imageList[Constants.ExecutionStateFailed] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.ExecutionFailed.ico");
+			_imageList[Constants.ExecutionStatePassed] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.ExecutionPassed.ico");
+			_imageList[Constants.ExecutionStatePaused] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.ExecutionPaused.ico");
+			_imageList[Constants.ExecutionStateRunning] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.ExecutionRunning.ico");
+			_imageList[Constants.ExecutionStateTerminated] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.ExecutionTerminated.ico");
+			_imageList[Constants.ExecutionStateTerminating] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.ExecutionTerminating.ico");
+			_imageList[Constants.AddGlobal] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.Add.ico");
+			_imageList[Constants.DeleteGlobal] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.Delete.ico");
+			_imageList[Constants.NotConnected] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.NotConnected.png");
+			_imageList[Constants.SecureConnection] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.SecuredConnection.png");
+			_imageList[Constants.NotSecureConnection] = Assembly.GetExecutingAssembly().GetManifestResourceStream("ExampleClient.Resources.NotSecuredConnection.png");
 		}
 
 		private void SetMonospacedFontInTraceAndLogControls()
@@ -222,18 +175,18 @@ namespace ExampleClient
 				string connectionStatusString, connectionStatusImageName, connectionType;
 				if (_isConnected)
 				{
-					connectionStatusString = ConnectionStatusConnected;
-					connectionStatusImageName = ConnectionStatusConnected;
-					connectionType = _connectionIsSecured ? SecureConnection : NotSecureConnection;
+					connectionStatusString = Constants.ConnectionStatusConnected;
+					connectionStatusImageName = Constants.ConnectionStatusConnected;
+					connectionType = _connectionIsSecured ? Constants.SecureConnection : Constants.NotSecureConnection;
 				}
 				else
 				{
-					connectionStatusString = ConnectionStatusDisconnected;
-					connectionStatusImageName = ConnectionStatusDisconnected;
-					connectionType = NotConnected;
+					connectionStatusString = Constants.ConnectionStatusDisconnected;
+					connectionStatusImageName = Constants.ConnectionStatusDisconnected;
+					connectionType = Constants.NotConnected;
 
 					// Reset the execution status
-					SetExecutionStatus(NotExecutedSequenceFile);
+					SetExecutionStatus(Constants.NotExecutedSequenceFile);
 
 					_deleteGlobalButton.Enabled = false;
 					_commitGlobalsToDiskButton.Enabled = false;
@@ -257,11 +210,16 @@ namespace ExampleClient
 		{
 			lock (_dataLock)
 			{
+				if (_activeExecutionCancellationTokenSource != null)
+				{
+					_activeExecutionCancellationTokenSource.Cancel();
+					_activeExecutionCancellationTokenSource = null;
+				}
 				_activeExecution = null;
 			}
 
 			await UpdateExecutionOptionsStateAsync();
-			SetExecutionStatus(NotExecutedSequenceFile);
+			SetExecutionStatus(Constants.NotExecutedSequenceFile);
 			SetConnectionStatusOnUIThread(false);
 
 			Cleanup();
@@ -270,16 +228,12 @@ namespace ExampleClient
 		// pass false to onlyIfNeeded if the server address might have changed
 		private void Setup(bool onlyIfNeeded)
 		{
-			if (!onlyIfNeeded || _gRPCChannel == null)
+			if (!onlyIfNeeded || !_clients.HasChannel)
 			{
 				Cleanup();
 
-				_gRPCChannel = _channelHelper.OpenChannel(_serverAddress, _clientOptions, out _connectionIsSecured, out string connectionErrors);
-				if (_gRPCChannel != null)
+				if (_clients.OpenChannel(_serverAddress, _clientOptions, out _connectionIsSecured, out string connectionErrors))
 				{
-					// create the service clients for the interfaces we want to use 
-					SetupServiceClients();
-
 					// the engine is used a lot, make sure we have a reference handy
 					GetEngineReference();
 
@@ -314,19 +268,18 @@ namespace ExampleClient
 			_eventLoops = new List<Tuple<Task, System.Threading.CancellationTokenSource>>();   
 			
 			// if a channel already exists, dispose it
-			if (_gRPCChannel != null)
+			if (_clients.HasChannel)
 			{
 				// let the server know this connection and all its instance ids are no longer needed.
 				// this also exits all event streams, but we did that earlier so that the simultaneous Clearing of all the 
 				// object instance ids doesn't generate an error from an grpc call inside an event loop that hasn't finished exiting.
 				try
 				{
-					_instanceLifetimeClient?.Clear(new InstanceLifetime_ClearRequest { DiscardConnection = true });
+					_clients.InstanceLifetimeClient?.Clear(new InstanceLifetime_ClearRequest { DiscardConnection = true });
 				}
 				catch { } // the connection might have already gone bad, so ignore exceptions
 
-				Task.Run(async () => await _gRPCChannel.ShutdownAsync()).Wait(); // call async task in thread pool thread so that Wait() can't prevent the continuation from completing 
-				_gRPCChannel = null;
+				Task.Run(async () => await _clients.ShutdownAsync()).Wait(); // call async task in thread pool thread so that Wait() can't prevent the continuation from completing 
 			}
 
 			_engine = null; // all instance ids are now invalid
@@ -335,230 +288,212 @@ namespace ExampleClient
 		private static string _errorResultStatusConstant;
 
 		private Tuple<Task, System.Threading.CancellationTokenSource> HandleUIMessagesAsync()
+        {
+            bool demoEventMessages = false;
+
+            if (String.IsNullOrEmpty(_errorResultStatusConstant))
+                _errorResultStatusConstant = _clients.StepPropertiesClient.Get_ResultStatus_Error(new ConstantValueRequest()).ReturnValue;
+
+            var cancellationTokenSource = new System.Threading.CancellationTokenSource();
+
+            // get stream of UIMessage events
+            var call = _clients.EngineClient.GetEvents_UIMessageEvent(new Engine_GetEvents_UIMessageEventRequest
+            {
+                Instance = _engine,
+                DiscardMultipleEventsWithinPeriod = 0.0,
+                ReplyTimeout = 20.0,
+                TimeoutCancelsEvents = true
+            }, null, null, cancellationTokenSource.Token);
+
+            var uiMessageEventStream = call.ResponseStream;
+
+            // read the message stream from a separate thread. Otherwise the asynchronous message reading loop would block whenever the thread in which it is established
+            // blocks in a synchronous call, including synchronous gRPC calls. Because some TestStand gRPC API calls can generate events that require replies before completing
+            // the call, event loops should not be in a thread that might make non-async calls to the TestStand API, or any other calls that might block for an unbounded period.
+            var task = Task.Run(() => HandleUiEventsAsync(demoEventMessages, call, uiMessageEventStream));
+
+            return new Tuple<Task, System.Threading.CancellationTokenSource>(task, cancellationTokenSource);
+        }
+
+		private async Task HandleUiEventsAsync(
+			bool demoEventMessages,
+			AsyncServerStreamingCall<Engine_GetEvents_UIMessageEventResponse> call,
+			IAsyncStreamReader<Engine_GetEvents_UIMessageEventResponse> uiMessageEventStream)
 		{
-			bool demoEventMessages = false;
+			const int IndentOffset = 4;
+			const int StatusLength = 7;
 
-			if (String.IsNullOrEmpty(_errorResultStatusConstant))
-				 _errorResultStatusConstant = _stepPropertiesClient.Get_ResultStatus_Error(new ConstantValueRequest()).ReturnValue;
-
-			var cancellationTokenSource = new System.Threading.CancellationTokenSource();
-
-			// get stream of UIMessage events
-			var call = _engineClient.GetEvents_UIMessageEvent(new Engine_GetEvents_UIMessageEventRequest
+			try
 			{
-				Instance = _engine,
-				DiscardMultipleEventsWithinPeriod = 0.0,
-				ReplyTimeout = 20.0,
-				TimeoutCancelsEvents = true
-			}, null, null, cancellationTokenSource.Token);
-
-			var uiMessageEventStream = call.ResponseStream;
-
-			// read the message stream from a separate thread. Otherwise the asynchronous message reading loop would block whenever the thread in which it is established
-			// blocks in a synchronous call, including synchronous gRPC calls. Because some TestStand gRPC API calls can generate events that require replies before completing
-			// the call, event loops should not be in a thread that might make non-async calls to the TestStand API, or any other calls that might block for an unbounded period.
-			var task = Task.Run(async () =>
-			{
-				const int IndentOffset = 4;
-				const int StatusLength = 7;
-
-				try
+				await foreach (var uiMessageEvent in uiMessageEventStream.ReadAllAsync())
 				{
-					await foreach (var uiMessageEvent in uiMessageEventStream.ReadAllAsync())
+					DateTime now = DateTime.Now;
+					UIMessageCodes uiMessageCode = UIMessageCodes.ReservedZero;
+					ExecutionInstance activeExecution;
+
+					lock (_dataLock)
 					{
-						DateTime now = DateTime.Now;
-						UIMessageCodes uiMessageCode = UIMessageCodes.ReservedZero;
-						ExecutionInstance activeExecution;
+						activeExecution = _activeExecution;
+					}
 
-						lock (_dataLock)
-						{
-							activeExecution = _activeExecution;
-						}
+					if (demoEventMessages)
+					{
+						LogLine($"received msg id {uiMessageEvent.Msg.Id}  eventId: {uiMessageEvent.EventId}");
+					}
 
-						if (demoEventMessages)
+					// Only process UI messages if there is an active execution.
+					if (activeExecution != null)
+					{
+						UIMessage_Get_ExecutionResponse response = await _clients.UiMessageClient.Get_ExecutionAsync(new UIMessage_Get_ExecutionRequest
 						{
-							LogLine($"received msg id {uiMessageEvent.Msg.Id}  eventId: {uiMessageEvent.EventId}");
-						}
+							Instance = uiMessageEvent.Msg
+						});
+						ExecutionInstance executionInstance = response.ReturnValue;
+						uiMessageCode = _clients.UiMessageClient.Get_Event(new UIMessage_Get_EventRequest { Instance = uiMessageEvent.Msg }).ReturnValue;
 
-						// Only process UI messages if there is an active execution.
-						if (activeExecution != null)
+						switch (uiMessageCode)
 						{
-							UIMessage_Get_ExecutionResponse response = await _uiMessageClient.Get_ExecutionAsync(new UIMessage_Get_ExecutionRequest
+							case UIMessageCodes.UimsgStartExecution:
 								{
-									Instance = uiMessageEvent.Msg
-								});
-							ExecutionInstance executionInstance = response.ReturnValue;
-							uiMessageCode = _uiMessageClient.Get_Event(new UIMessage_Get_EventRequest { Instance = uiMessageEvent.Msg }).ReturnValue;
-
-							switch (uiMessageCode)
-							{
-								case UIMessageCodes.UimsgStartExecution:
+									// Parallel and Batch process models create new executions for the test sockets. Those execution need to be traced.
+									// Since the executions can take time to start and there is not enough information to determine execution hierarchy
+									// (there is no parent execution property on an execution object), the first executions up to the total number of
+									// test sockets expected will be treated as the socket executions for the process model.
+									// This approach will not work in all cases. If one of the sockets starts a new execution before a new socket is 
+									// started, the new execution will be treated as one of the sockets which is not correct.
+									// More elaborated approaches can be made by looking at model data to determine the execution information,
+									// but it will require more calls and it will be tied to a process model implementation.
+									if (_executionIdsToTrace.Count < _numberOfTestSocketsExecuting)
 									{
-										// Parallel and Batch process models create new executions for the test sockets. Those execution need to be traced.
-										// Since the executions can take time to start and there is not enough information to determine execution hierarchy
-										// (there is no parent execution property on an execution object), the first executions up to the total number of
-										// test sockets expected will be treated as the socket executions for the process model.
-										// This approach will not work in all cases. If one of the sockets starts a new execution before a new socket is 
-										// started, the new execution will be treated as one of the sockets which is not correct.
-										// More elaborated approaches can be made by looking at model data to determine the execution information,
-										// but it will require more calls and it will be tied to a process model implementation.
-										if (_executionIdsToTrace.Count < _numberOfTestSocketsExecuting)
+										_executionIdsToTrace.Add(executionInstance.Id);
+									}
+								}
+								break;
+							case UIMessageCodes.UimsgEndExecution:
+								{
+									bool traceExecution = _executionIdsToTrace.Contains(executionInstance.Id);
+									if (traceExecution)
+									{
+										var executionId = (await _clients.ExecutionClient.Get_IdAsync(new Execution_Get_IdRequest { Instance = executionInstance })).ReturnValue;
+
+										// Log the end of an execution only if tracing is enabled.
+										if (_enableTracingCheckBox.Checked)
 										{
-											_executionIdsToTrace.Add(executionInstance.Id);
+											LogTraceMessage(Invariant($"Execution with id '{executionId}' is done running.") + Environment.NewLine);
+										}
+
+										ReportInstance report = _clients.ExecutionClient.Get_Report(new Execution_Get_ReportRequest { Instance = executionInstance }).ReturnValue;
+										string reportPath = _clients.ReportClient.Get_Location(new Report_Get_LocationRequest { Instance = report }).ReturnValue;
+										if (!string.IsNullOrEmpty(reportPath))
+										{
+											_reportLocationsOnServer.Add(reportPath);
 										}
 									}
-									break;
-								case UIMessageCodes.UimsgEndExecution:
+								}
+								break;
+							case UIMessageCodes.UimsgTrace:
+								{
+									bool traceExecution = _executionIdsToTrace.Contains(executionInstance.Id);
+									int numberOfTestSocketsExecuting = _numberOfTestSocketsExecuting;
+
+									// Only process the trace messages of the executions that we know of.
+									if (traceExecution)
 									{
-										bool traceExecution = _executionIdsToTrace.Contains(executionInstance.Id);
-										if (traceExecution)
+										string message = string.Empty;
+
+										var threadInstance = _clients.UiMessageClient.Get_Thread(new UIMessage_Get_ThreadRequest { Instance = uiMessageEvent.Msg }).ReturnValue;
+										var sequenceContextInstance = _clients.ThreadClient.GetSequenceContext(new Thread_GetSequenceContextRequest { Instance = threadInstance, CallStackIndex = 0 }).ReturnValue;
+										var sequenceContextPropertyObjectInstance = new PropertyObjectInstance { Id = sequenceContextInstance.Id };
+										var previousStepIndex = _clients.SequenceContextClient.Get_PreviousStepIndex(new SequenceContext_Get_PreviousStepIndexRequest { Instance = sequenceContextInstance }).ReturnValue;
+
+										if (previousStepIndex >= 0)
 										{
-											var executionId = (await _executionClient.Get_IdAsync(new Execution_Get_IdRequest { Instance = executionInstance })).ReturnValue;
-
-											// Log the end of an execution only if tracing is enabled.
-											if (_enableTracingCheckBox.Checked)
+											if (numberOfTestSocketsExecuting > 1)
 											{
-												LogTraceMessage(Invariant($"Execution with id '{executionId}' is done running.") + Environment.NewLine);
-											}
-
-											ReportInstance report = _executionClient.Get_Report(new Execution_Get_ReportRequest { Instance = executionInstance }).ReturnValue;
-											string reportPath = _reportClient.Get_Location(new Report_Get_LocationRequest { Instance = report }).ReturnValue;
-											if (!string.IsNullOrEmpty(reportPath))
-											{
-												_reportLocationsOnServer.Add(reportPath);
-											}
-										}
-									}
-									break;
-								case UIMessageCodes.UimsgTrace:
-									{
-										bool traceExecution = _executionIdsToTrace.Contains(executionInstance.Id);
-										int numberOfTestSocketsExecuting = _numberOfTestSocketsExecuting;
-
-										// Only process the trace messages of the executions that we know of.
-										if (traceExecution)
-										{
-											string message = string.Empty;
-
-											var threadInstance = _uiMessageClient.Get_Thread(new UIMessage_Get_ThreadRequest { Instance = uiMessageEvent.Msg }).ReturnValue;
-											var sequenceContextInstance = _threadClient.GetSequenceContext(new Thread_GetSequenceContextRequest { Instance = threadInstance, CallStackIndex = 0 }).ReturnValue;
-											var sequenceContextPropertyObjectInstance = new PropertyObjectInstance { Id = sequenceContextInstance.Id };
-											var previousStepIndex = _sequenceContextClient.Get_PreviousStepIndex(new SequenceContext_Get_PreviousStepIndexRequest { Instance = sequenceContextInstance }).ReturnValue;
-
-											if (previousStepIndex >= 0)
-											{
-												if (numberOfTestSocketsExecuting > 1)
+												int socketNumber = (int)_clients.PropertyObjectClient.GetValNumber(new PropertyObject_GetValNumberRequest
 												{
-													int socketNumber = (int)_propertyObjectClient.GetValNumber(new PropertyObject_GetValNumberRequest
-													{
-														Instance = sequenceContextPropertyObjectInstance,
-														LookupString = "Runstate.TestSockets.MyIndex",
-														Options = PropertyOptions.PropOptionNoOptions
-													}).ReturnValue;
+													Instance = sequenceContextPropertyObjectInstance,
+													LookupString = "Runstate.TestSockets.MyIndex",
+													Options = PropertyOptions.PropOptionNoOptions
+												}).ReturnValue;
 
-													// Make socket two characters long and left aligned it
-													message = Invariant($"Socket {socketNumber,-2}  ");
-												}
-
-												var previousStepInstance = (await _sequenceContextClient.Get_PreviousStepAsync(new SequenceContext_Get_PreviousStepRequest { Instance = sequenceContextInstance })).ReturnValue;
-												var stepName = (await _stepClient.Get_NameAsync(new Step_Get_NameRequest { Instance = previousStepInstance })).ReturnValue;
-												var status = (await _stepClient.Get_ResultStatusAsync(new Step_Get_ResultStatusRequest { Instance = previousStepInstance })).ReturnValue;
-
-												// Make status 7 characters long and left aligned it.
-												string statusFormatted = string.Format("{0,-" + StatusLength + "}", status);
-												message += Invariant($"{statusFormatted}  Step {stepName}");
-
-												if (status == _errorResultStatusConstant)
-												{
-													var stepObj = new PropertyObjectInstance { Id = previousStepInstance.Id }; // no need to call AsPropertyObject, just use the same Id and save a round trip
-													var errorCode = (await _propertyObjectClient.GetValNumberAsync(new PropertyObject_GetValNumberRequest { Instance = stepObj, LookupString = "Result.Error.Code", Options = PropertyOptions.PropOptionNoOptions })).ReturnValue;
-													var errorMessage = (await _propertyObjectClient.GetValStringAsync(new PropertyObject_GetValStringRequest { Instance = stepObj, LookupString = "Result.Error.Msg", Options = PropertyOptions.PropOptionNoOptions })).ReturnValue;
-
-													// Indent the Code label below the Step label
-													int codeStartingIndex = message.IndexOf("Step") + IndentOffset;
-													string indentedCodeLabel = string.Format("\n{0," + codeStartingIndex + "}Code", "");
-
-													message += Invariant($"{indentedCodeLabel} {errorCode}  Message {errorMessage}");
-												}
-
-												LogTraceMessage(message + Environment.NewLine);
+												// Make socket two characters long and left aligned it
+												message = Invariant($"Socket {socketNumber,-2}  ");
 											}
+
+											var previousStepInstance = (await _clients.SequenceContextClient.Get_PreviousStepAsync(new SequenceContext_Get_PreviousStepRequest { Instance = sequenceContextInstance })).ReturnValue;
+											var stepName = (await _clients.StepClient.Get_NameAsync(new Step_Get_NameRequest { Instance = previousStepInstance })).ReturnValue;
+											var status = (await _clients.StepClient.Get_ResultStatusAsync(new Step_Get_ResultStatusRequest { Instance = previousStepInstance })).ReturnValue;
+
+											// Make status 7 characters long and left aligned it.
+											string statusFormatted = string.Format("{0,-" + StatusLength + "}", status);
+											message += Invariant($"{statusFormatted}  Step {stepName}");
+
+											if (status == _errorResultStatusConstant)
+											{
+												var stepObj = new PropertyObjectInstance { Id = previousStepInstance.Id }; // no need to call AsPropertyObject, just use the same Id and save a round trip
+												var errorCode = (await _clients.PropertyObjectClient.GetValNumberAsync(new PropertyObject_GetValNumberRequest { Instance = stepObj, LookupString = "Result.Error.Code", Options = PropertyOptions.PropOptionNoOptions })).ReturnValue;
+												var errorMessage = (await _clients.PropertyObjectClient.GetValStringAsync(new PropertyObject_GetValStringRequest { Instance = stepObj, LookupString = "Result.Error.Msg", Options = PropertyOptions.PropOptionNoOptions })).ReturnValue;
+
+												// Indent the Code label below the Step label
+												int codeStartingIndex = message.IndexOf("Step") + IndentOffset;
+												string indentedCodeLabel = string.Format("\n{0," + codeStartingIndex + "}Code", "");
+
+												message += Invariant($"{indentedCodeLabel} {errorCode}  Message {errorMessage}");
+											}
+
+											LogTraceMessage(message + Environment.NewLine);
 										}
 									}
-									break;
-							}
-						}
-
-						_ = _engineClient.ReplyToEvent_UIMessageEventAsync(new Engine_ReplyToEvent_UIMessageEventRequest { EventId = uiMessageEvent.EventId });
-
-						if (demoEventMessages)
-						{
-							var elapsed = DateTime.Now - now;
-							LogLine("UIMessage event: " + uiMessageCode.ToString() + ", Processing Time = " + elapsed.TotalSeconds.ToString());
+								}
+								break;
 						}
 					}
 
-					LogLine("The UIMessage event stream exited without an error.");
+					_ = _clients.EngineClient.ReplyToEvent_UIMessageEventAsync(new Engine_ReplyToEvent_UIMessageEventRequest { EventId = uiMessageEvent.EventId });
 
-				}
-				catch (RpcException rpcException)
-				{
-					// When disconnecting from server, the client cancels the event stream. So, a cancelled
-					// exception should not be treated as an error.
-					if (rpcException.StatusCode == StatusCode.Cancelled)
+					if (demoEventMessages)
 					{
-						LogLine("The UI message event stream has been cancelled.");
-					}
-					else
-					{
-						LogLine("The UIMessage event stream exited with an error: " + rpcException.Message);
+						var elapsed = DateTime.Now - now;
+						LogLine("UIMessage event: " + uiMessageCode.ToString() + ", Processing Time = " + elapsed.TotalSeconds.ToString());
 					}
 				}
-				catch (Exception exception)
+
+				LogLine("The UIMessage event stream exited without an error.");
+
+			}
+			catch (RpcException rpcException)
+			{
+				// When disconnecting from server, the client cancels the event stream. So, a cancelled
+				// exception should not be treated as an error.
+				if (rpcException.StatusCode == StatusCode.Cancelled)
 				{
-					LogLine("The UIMessage event stream exited with an error: " + exception.Message);
+					LogLine("The UI message event stream has been cancelled.");
 				}
+				else
+				{
+					LogLine("The UIMessage event stream exited with an error: " + rpcException.Message);
+				}
+			}
+			catch (Exception exception)
+			{
+				LogLine("The UIMessage event stream exited with an error: " + exception.Message);
+			}
 
-				call.Dispose(); // cancels the call, in case we exited with an error
-			});
-
-			return new Tuple<Task, System.Threading.CancellationTokenSource>(task, cancellationTokenSource);
-		}
-
-		private void SetupServiceClients()
-		{
-			// with gRPC you need a separate 'client' to talk to each 'service'
-
-			// clients for TestStand API interfaces we want to use
-			_engineClient = new Engine.EngineClient(_gRPCChannel);
-			_stepClient = new Step.StepClient(_gRPCChannel);
-			_executionClient = new Execution.ExecutionClient(_gRPCChannel);
-			_reportClient = new Report.ReportClient(_gRPCChannel);
-			_threadClient = new Thread.ThreadClient(_gRPCChannel);
-			_sequenceContextClient = new SequenceContext.SequenceContextClient(_gRPCChannel);
-			_propertyObjectClient = new PropertyObject.PropertyObjectClient(_gRPCChannel);
-			_propertyObjectFileClient = new PropertyObjectFile.PropertyObjectFileClient(_gRPCChannel);
-			_stationOptionsClient = new StationOptions.StationOptionsClient(_gRPCChannel);
-			_applicationMgrClient = new ApplicationMgr.ApplicationMgrClient(_gRPCChannel);
-			_executionsClient = new Executions.ExecutionsClient(_gRPCChannel);
-			_uiMessageClient = new UIMessage.UIMessageClient(_gRPCChannel);
-			_stepPropertiesClient = new StepProperties.StepPropertiesClient(_gRPCChannel);
-
-			// client for the Instance Lifetime API, which lets you tell the server when your client doesn't need specific objects on the server any longer
-			_instanceLifetimeClient = new InstanceLifetime.InstanceLifetimeClient(_gRPCChannel);
+			call.Dispose(); // cancels the call, in case we exited with an error
 		}
 
 		private void GetEngineReference()
 		{
 			if (_engine == null)
 			{
-				_engine = _engineClient.Engine(new Engine_EngineRequest()).ReturnValue;
+				_engine = _clients.EngineClient.Engine(new Engine_EngineRequest()).ReturnValue;
 				
 				// in case someone changes the default lifespan, always make the engine have an unlimited lifespan
-				_instanceLifetimeClient.SetLifespan(new InstanceLifetime_SetLifespanRequest
+				_clients.InstanceLifetimeClient.SetLifespan(new InstanceLifetime_SetLifespanRequest
 				{
 					Value = new ObjectInstance() { Id = _engine.Id },
-					LifeSpan = _instanceLifetimeClient.Get_InfiniteLifetime(new InstanceLifetime_Get_InfiniteLifetimeRequest()).ReturnValue
+					LifeSpan = _clients.InstanceLifetimeClient.Get_InfiniteLifetime(new InstanceLifetime_Get_InfiniteLifetimeRequest()).ReturnValue
 				});
 			}
 		}
@@ -566,15 +501,15 @@ namespace ExampleClient
 		private void InitializeProcessModelInformation()
 		{
 			// Initialize the process model MRU list
-			PropertyObjectFileInstance configFile = _engineClient.GetEngineConfigFile(
+			PropertyObjectFileInstance configFile = _clients.EngineClient.GetEngineConfigFile(
 				new Engine_GetEngineConfigFileRequest
 				{
 					Instance = _engine,
 					ConfigFileType = PropertyObjectFileTypes.FileTypeGeneralEngineConfigFile
 				}).ReturnValue;
 
-			PropertyObjectInstance data = _propertyObjectFileClient.Get_Data(new PropertyObjectFile_Get_DataRequest { Instance = configFile }).ReturnValue;
-			string mruList = _propertyObjectClient.GetValString(
+			PropertyObjectInstance data = _clients.PropertyObjectFileClient.Get_Data(new PropertyObjectFile_Get_DataRequest { Instance = configFile }).ReturnValue;
+			string mruList = _clients.PropertyObjectClient.GetValString(
 				new PropertyObject_GetValStringRequest
 				{
 					Instance = data,
@@ -588,7 +523,7 @@ namespace ExampleClient
 
 			// Get the active process model and the number of test sockets
 			StationOptionsInstance stationOptions = GetStationOptions();
-			string modelPath = _stationOptionsClient.Get_StationModelSequenceFilePath(
+			string modelPath = _clients.StationOptionsClient.Get_StationModelSequenceFilePath(
 				new StationOptions_Get_StationModelSequenceFilePathRequest
 				{
 					Instance = stationOptions
@@ -615,7 +550,7 @@ namespace ExampleClient
 		private void InitializeEnableTracingOption()
 		{
 			StationOptionsInstance stationOptions = GetStationOptions();
-			_enableTracingCheckBox.Checked = _stationOptionsClient.Get_TracingEnabled(
+			_enableTracingCheckBox.Checked = _clients.StationOptionsClient.Get_TracingEnabled(
 				new StationOptions_Get_TracingEnabledRequest
 				{
 					Instance = stationOptions
@@ -633,7 +568,7 @@ namespace ExampleClient
 
 		private StationOptionsInstance GetStationOptions()
 		{
-			return _engineClient.Get_StationOptions(new Engine_Get_StationOptionsRequest { Instance = _engine }).ReturnValue;
+			return _clients.EngineClient.Get_StationOptions(new Engine_Get_StationOptionsRequest { Instance = _engine }).ReturnValue;
 		}
 
 		private int GetMultipleUUTSettingsNumberOfTestSocketsOption()
@@ -646,11 +581,11 @@ namespace ExampleClient
 			if (modelOptions != null)
 			{
 				// Get number of test sockets
-				numberOfTestSockets = (int)_propertyObjectClient.GetValNumber(
+				numberOfTestSockets = (int)_clients.PropertyObjectClient.GetValNumber(
 					new PropertyObject_GetValNumberRequest
 					{
 						Instance = modelOptions,
-						LookupString = NumberOfTestSocketsPropertyName,
+						LookupString = Constants.NumberOfTestSocketsPropertyName,
 						Options = PropertyOptions.PropOptionNoOptions
 					}).ReturnValue;
 			}
@@ -665,23 +600,23 @@ namespace ExampleClient
 			if (modelOptions != null)
 			{
 				// Set the number of test sockets
-				_propertyObjectClient.SetValNumber(
+				_clients.PropertyObjectClient.SetValNumber(
 					new PropertyObject_SetValNumberRequest
 					{
 						Instance = modelOptions,
-						LookupString = NumberOfTestSocketsPropertyName,
+						LookupString = Constants.NumberOfTestSocketsPropertyName,
 						NewValue = numberOfSockets,
 						Options = PropertyOptions.PropOptionNoOptions
 					});
 
 				// Persist the new value
 				string modelOptionsFilePath = GetModelOptionsFilePath();
-				_propertyObjectClient.Write(
+				_clients.PropertyObjectClient.Write(
 					new PropertyObject_WriteRequest
 					{
 						Instance = modelOptions,
 						PathString = modelOptionsFilePath,
-						ObjectName = ModelOptionsFileSectionName,
+						ObjectName = Constants.ModelOptionsFileSectionName,
 						RWoptions = ReadWriteOptions.RwoptionEraseAll
 					});
 			}
@@ -694,7 +629,7 @@ namespace ExampleClient
 			string modelOptionsFilePath = GetModelOptionsFilePath();
 
 			// Create object to store the model options
-			PropertyObjectInstance modelOptions = _engineClient.NewPropertyObject(
+			PropertyObjectInstance modelOptions = _clients.EngineClient.NewPropertyObject(
 				new Engine_NewPropertyObjectRequest
 				{
 					Instance = _engine,
@@ -707,12 +642,12 @@ namespace ExampleClient
 			try
 			{
 				// Read the model options
-				_propertyObjectClient.ReadEx(
+				_clients.PropertyObjectClient.ReadEx(
 					new PropertyObject_ReadExRequest
 					{
 						Instance = modelOptions,
 						PathString = modelOptionsFilePath,
-						ObjectName = ModelOptionsFileSectionName,
+						ObjectName = Constants.ModelOptionsFileSectionName,
 						RWoptions = ReadWriteOptions.RwoptionNoOptions,
 						HandlerType = TypeConflictHandlerTypes.ConflictHandlerUseGlobalType
 					});
@@ -744,7 +679,7 @@ namespace ExampleClient
             {
 				if (int.TryParse(errorCodeString, out int errorCode))
                 {
-					description = _engineClient.GetErrorString(new Engine_GetErrorStringRequest { Instance = _engine, ErrorCode = (TSError)errorCode }).ErrorString;
+					description = _clients.EngineClient.GetErrorString(new Engine_GetErrorStringRequest { Instance = _engine, ErrorCode = (TSError)errorCode }).ErrorString;
 					return (TSError)errorCode;
                 }
             }
@@ -756,7 +691,7 @@ namespace ExampleClient
 		{
 			const string ModelOptionsFilename = "TestStandModelModelOptions.ini";
 
-			string modelOptionsFilePath = _engineClient.GetTestStandPath(
+			string modelOptionsFilePath = _clients.EngineClient.GetTestStandPath(
 				new Engine_GetTestStandPathRequest
 				{
 					Instance = _engine,
@@ -775,12 +710,12 @@ namespace ExampleClient
 			if (_isConnected)
 			{
 			// Always refresh the station global by getting them directly from the server
-				PropertyObjectInstance stationGlobals = _engineClient.Get_Globals(
+				PropertyObjectInstance stationGlobals = _clients.EngineClient.Get_Globals(
 					new Engine_Get_GlobalsRequest
 					{
 						Instance = _engine
 					}).ReturnValue;
-			int numberOfGlobals = _propertyObjectClient.GetNumSubProperties(
+			int numberOfGlobals = _clients.PropertyObjectClient.GetNumSubProperties(
 				new PropertyObject_GetNumSubPropertiesRequest
 				{
 					Instance = stationGlobals,
@@ -791,7 +726,7 @@ namespace ExampleClient
 			for (int index = 0; index < numberOfGlobals; index++)
 			{
 				// Get the station global
-				PropertyObjectInstance global = _propertyObjectClient.GetNthSubProperty(
+				PropertyObjectInstance global = _clients.PropertyObjectClient.GetNthSubProperty(
 					new PropertyObject_GetNthSubPropertyRequest
 					{
 						Instance = stationGlobals,
@@ -801,15 +736,15 @@ namespace ExampleClient
 					}).ReturnValue;
 
 				// Get name, value, and type information
-				string name = _propertyObjectClient.Get_Name(new PropertyObject_Get_NameRequest { Instance = global }).ReturnValue;
-				string value = _propertyObjectClient.GetValString(
+				string name = _clients.PropertyObjectClient.Get_Name(new PropertyObject_Get_NameRequest { Instance = global }).ReturnValue;
+				string value = _clients.PropertyObjectClient.GetValString(
 					new PropertyObject_GetValStringRequest
 					{
 						Instance = global,
 						LookupString = string.Empty,
 						Options = PropertyOptions.PropOptionCoerce
 					}).ReturnValue;
-				string displayType = _propertyObjectClient.GetTypeDisplayString(
+				string displayType = _clients.PropertyObjectClient.GetTypeDisplayString(
 					new PropertyObject_GetTypeDisplayStringRequest
 					{
 						Instance = global,
@@ -841,12 +776,12 @@ namespace ExampleClient
 				using (new AutoWaitCursor(this))
 				{
 					if (_isConnected)
-		{			
+					{
 						await DisconnectAsync();
 					}
 					else
-			{
-				Setup(false);
+					{
+						Setup(false);
 					}
 				}
 			}, actionDescription);
@@ -877,15 +812,6 @@ namespace ExampleClient
 					LogLine(stringToLog);
 				}
 			}
-		}
-
-		private void TryAction(Action action, string stringToLog)
-		{
-			_ = TryActionAsync(async Task () =>
-			{
-				action();
-				await Task.CompletedTask;
-			}, stringToLog);
 		}
 
 		private void ReportException(Exception exception)
@@ -962,7 +888,7 @@ namespace ExampleClient
 
 		private void OnSequenceFileNameComboBoxSelectedIndexChanged(object sender, EventArgs e)
 		{
-			SetExecutionStatus(NotExecutedSequenceFile);
+			SetExecutionStatus(Constants.NotExecutedSequenceFile);
 		}
 
 		private void OnServerAddressTextBoxValidating(object sender, System.ComponentModel.CancelEventArgs e)
@@ -1018,6 +944,7 @@ namespace ExampleClient
 		private async void OnRunSequenceFileButtonClick(object sender, EventArgs e)
 		{
 			Debug.Assert(_activeExecution == null);
+			Debug.Assert(_activeExecutionCancellationTokenSource == null);
 
 			try
 			{
@@ -1025,7 +952,7 @@ namespace ExampleClient
 
 				// Since only one execution can be run at a time, disable the run button when starting a new execution.
 				_runSequenceFileButton.Enabled = false;
-				_runSequenceFileButton.Text = RunningRemoteSequenceFile;
+				_runSequenceFileButton.Text = Constants.RunningRemoteSequenceFile;
 
 				await TryActionAsync(async () =>
 				{
@@ -1038,7 +965,7 @@ namespace ExampleClient
                     }
 
 					// get the sequence file to run
-					var sequenceFile = _engineClient.GetSequenceFileEx(new Engine_GetSequenceFileExRequest
+					var sequenceFile = _clients.EngineClient.GetSequenceFileEx(new Engine_GetSequenceFileExRequest
 					{
 						Instance = _engine,
 						SeqFilePath = _sequenceFileNameComboBox.Text,
@@ -1061,8 +988,8 @@ namespace ExampleClient
 						if (_isConnected)
 						{
 							// Determine if an error occurred during the execution.
-							PropertyObjectInstance errorObject = _executionClient.Get_ErrorObject(new Execution_Get_ErrorObjectRequest { Instance = _activeExecution }).ReturnValue;
-							bool errorOccurred = _propertyObjectClient.GetValBoolean(
+							PropertyObjectInstance errorObject = _clients.ExecutionClient.Get_ErrorObject(new Execution_Get_ErrorObjectRequest { Instance = _activeExecution }).ReturnValue;
+							bool errorOccurred = _clients.PropertyObjectClient.GetValBoolean(
 								new PropertyObject_GetValBooleanRequest
 								{
 									Instance = errorObject,
@@ -1073,16 +1000,17 @@ namespace ExampleClient
 							string resultStatus;
 							if (errorOccurred)
 							{
-								resultStatus = ExecutionStateError;
+								resultStatus = Constants.ExecutionStateError;
 							}
 							else
 							{
-								resultStatus = _executionClient.Get_ResultStatus(new Execution_Get_ResultStatusRequest { Instance = _activeExecution }).ReturnValue;
+								resultStatus = _clients.ExecutionClient.Get_ResultStatus(new Execution_Get_ResultStatusRequest { Instance = _activeExecution }).ReturnValue;
 							}
-						SetExecutionStatus(resultStatus);
 
-						LogExecutionResults(resultStatus, processModel, modelName, modelData);
-					}
+							SetExecutionStatus(resultStatus);
+
+							LogExecutionResults(resultStatus, processModel, modelName, modelData);
+						}
 					}
 					finally
 					{
@@ -1093,7 +1021,7 @@ namespace ExampleClient
 						// release file references we no longer need (files require explicit release)
 						if (processModel != null)
 						{
-							_engineClient.ReleaseSequenceFileEx(new Engine_ReleaseSequenceFileExRequest
+							_clients.EngineClient.ReleaseSequenceFileEx(new Engine_ReleaseSequenceFileExRequest
 							{
 								Instance = _engine,
 								SequenceFileToRelease = processModel,
@@ -1101,7 +1029,7 @@ namespace ExampleClient
 							});
 						}
 
-						_engineClient.ReleaseSequenceFileEx(new Engine_ReleaseSequenceFileExRequest
+						_clients.EngineClient.ReleaseSequenceFileEx(new Engine_ReleaseSequenceFileExRequest
 						{
 							Instance = _engine,
 							SequenceFileToRelease = sequenceFile,
@@ -1119,17 +1047,18 @@ namespace ExampleClient
 					// of execution. So, reset state to not executed since any errors will appear in the log control.
 					if (_activeExecution == null)
 					{
-						SetExecutionStatus(NotExecutedSequenceFile);
+						SetExecutionStatus(Constants.NotExecutedSequenceFile);
 					}
 
 					_activeExecution = null;
+					_activeExecutionCancellationTokenSource = null;
 				}
 
 				_executionIdsToTrace.Clear();
 				_numberOfTestSocketsExecuting = 0;
 
 				_runSequenceFileButton.Enabled = true;
-				_runSequenceFileButton.Text = RunRemoteSequenceFile;
+				_runSequenceFileButton.Text = Constants.RunRemoteSequenceFile;
 			}
 		}
 
@@ -1143,7 +1072,7 @@ namespace ExampleClient
 				if (modelName == "Use Station Model")
 				{
 					StationOptionsInstance stationOptions = GetStationOptions();
-					modelName = _stationOptionsClient.Get_StationModelSequenceFilePath(
+					modelName = _clients.StationOptionsClient.Get_StationModelSequenceFilePath(
 						new StationOptions_Get_StationModelSequenceFilePathRequest
 						{
 							Instance = stationOptions
@@ -1154,7 +1083,7 @@ namespace ExampleClient
 					modelName += "Model.seq";
 				}
 
-				processModel = _engineClient.GetSequenceFileEx(new Engine_GetSequenceFileExRequest
+				processModel = _clients.EngineClient.GetSequenceFileEx(new Engine_GetSequenceFileExRequest
 				{
 					Instance = _engine,
 					SeqFilePath = modelName,
@@ -1193,14 +1122,14 @@ namespace ExampleClient
 			try
 			{
 				_numberOfTestSocketsExecuting = GetNumberOfTestSockets(processModel, modelName);
-				_activeExecution = _engineClient.NewExecution(newExecutionRequest).ReturnValue;
+				_activeExecution = _clients.EngineClient.NewExecution(newExecutionRequest).ReturnValue;
 
 				_executionIdsToTrace.Clear();
 				_executionIdsToTrace.Add(_activeExecution.Id);
 			}
 			catch (RpcException rpcException)
             {
-				TSError errorCode = GetTSErrorCode(rpcException, out string description);
+				TSError errorCode = GetTSErrorCode(rpcException, out string _);
 				if (errorCode != TSError.TsErrNoError)
 				{
 					// Some error messages include additional information that we don't want to display.  The additional
@@ -1216,24 +1145,37 @@ namespace ExampleClient
 
 			PropertyObjectInstance modelData = GetProcessModelModelData(_activeExecution, modelName);
 
-			SetExecutionStatus(ExecutionStateRunning);
+			SetExecutionStatus(Constants.ExecutionStateRunning);
 
 			try
 			{
-				await _executionClient.WaitForEndExAsync(new Execution_WaitForEndExRequest
+				_activeExecutionCancellationTokenSource = new CancellationTokenSource();
+				await _clients.ExecutionClient.WaitForEndExAsync(new Execution_WaitForEndExRequest
 				{
 					Instance = _activeExecution,
 					MillisecondTimeOut = -1,
 					ProcessWindowsMsgs = false
-				});
+				},
+				cancellationToken: _activeExecutionCancellationTokenSource.Token);
 			}
-			catch
+			catch (Exception exception)
 			{
 				lock (_dataLock)
 				{
 					_activeExecution = null;
+					_activeExecutionCancellationTokenSource = null;
 				}
-				throw;
+
+				// When disconnecting from server, the token _activeExecutionCancellationTokenSource is cancelled.
+				// So, a cancelled exception should not be treated as an error.
+				if (exception is RpcException rpcException && rpcException.StatusCode == StatusCode.Cancelled)
+				{
+					LogLine("Waiting for execution has been cancelled.");
+				}
+				else
+				{
+					throw;
+				}
 			}
 
 			return modelData;
@@ -1245,7 +1187,7 @@ namespace ExampleClient
 			if (processModel != null && !IsSequentialModelName(modelName))
 			{
 				int configuredNumberOfTestSockets = GetMultipleUUTSettingsNumberOfTestSocketsOption();
-				numberOfTestSockets = configuredNumberOfTestSockets > 0 ? configuredNumberOfTestSockets : DefaultNumberOfTestSockets;
+				numberOfTestSockets = configuredNumberOfTestSockets > 0 ? configuredNumberOfTestSockets : Constants.DefaultNumberOfTestSockets;
 
 				// For Parallel and Batch process models, add an additional socket for the controller execution.
 				numberOfTestSockets++;
@@ -1262,12 +1204,12 @@ namespace ExampleClient
             }
 
 			// ModelData is a local variable in the root context.
-			ThreadInstance thread = _executionClient.GetThread(new Execution_GetThreadRequest { Instance = execution, Index = 0 }).ReturnValue;
-			SequenceContextInstance currentContext = _threadClient.GetSequenceContext(new Thread_GetSequenceContextRequest { Instance = thread, CallStackIndex = 0 }).ReturnValue;
-			SequenceContextInstance rootContext = _sequenceContextClient.Get_Root(new SequenceContext_Get_RootRequest { Instance = currentContext }).ReturnValue;
-			PropertyObjectInstance locals = _sequenceContextClient.Get_Locals(new SequenceContext_Get_LocalsRequest { Instance = rootContext }).ReturnValue;
+			ThreadInstance thread = _clients.ExecutionClient.GetThread(new Execution_GetThreadRequest { Instance = execution, Index = 0 }).ReturnValue;
+			SequenceContextInstance currentContext = _clients.ThreadClient.GetSequenceContext(new Thread_GetSequenceContextRequest { Instance = thread, CallStackIndex = 0 }).ReturnValue;
+			SequenceContextInstance rootContext = _clients.SequenceContextClient.Get_Root(new SequenceContext_Get_RootRequest { Instance = currentContext }).ReturnValue;
+			PropertyObjectInstance locals = _clients.SequenceContextClient.Get_Locals(new SequenceContext_Get_LocalsRequest { Instance = rootContext }).ReturnValue;
 				
-			PropertyObjectInstance modelData = _propertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
+			PropertyObjectInstance modelData = _clients.PropertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
 			{
 				Instance = locals,
 				LookupString = "ModelData",
@@ -1288,20 +1230,20 @@ namespace ExampleClient
 			else
 			{
 				bool hasResults = true;
-				PropertyObjectInstance executionResults = _executionClient.Get_ResultObject(new Execution_Get_ResultObjectRequest { Instance = _activeExecution }).ReturnValue;
+				PropertyObjectInstance executionResults = _clients.ExecutionClient.Get_ResultObject(new Execution_Get_ResultObjectRequest { Instance = _activeExecution }).ReturnValue;
 
 				if (processModel != null)
 				{
 					if (IsSequentialModelName(modelName))
 					{
-						var resultList = _propertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
+						var resultList = _clients.PropertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
 						{
 							Instance = executionResults,
 							LookupString = "ResultList",
 							Options = PropertyOptions.PropOptionNoOptions
 						}).ReturnValue;
 
-						var elementCount = _propertyObjectClient.GetNumElements(new PropertyObject_GetNumElementsRequest
+						var elementCount = _clients.PropertyObjectClient.GetNumElements(new PropertyObject_GetNumElementsRequest
 						{
 							Instance = resultList,
 						}).ReturnValue;
@@ -1309,24 +1251,17 @@ namespace ExampleClient
 						hasResults = elementCount == 1;
 						if (hasResults)
 						{
-							executionResults = _propertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
+							executionResults = _clients.PropertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
 							{
 								Instance = executionResults,
 								LookupString = "ResultList[0].TS.SequenceCall",
 								Options = PropertyOptions.PropOptionNoOptions
 							}).ReturnValue;
 
-							string entryPointName = _propertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
+							string entryPointName = _clients.PropertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
 							{
 								Instance = modelData,
 								LookupString = "EntryPoint",
-								Options = PropertyOptions.PropOptionNoOptions
-							}).ReturnValue;
-
-							string sequenceName = _propertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
-							{
-								Instance = executionResults,
-								LookupString = "Sequence",
 								Options = PropertyOptions.PropOptionNoOptions
 							}).ReturnValue;
 
@@ -1336,7 +1271,7 @@ namespace ExampleClient
 				}
 				else
 				{
-					string sequenceName = _propertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
+					string sequenceName = _clients.PropertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
 					{
 						Instance = executionResults,
 						LookupString = "Sequence",
@@ -1373,7 +1308,7 @@ namespace ExampleClient
 
 			Debug.Assert(modelData != null);
 
-			string entryPointName = _propertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
+			string entryPointName = _clients.PropertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
 			{
 				Instance = modelData,
 				LookupString = "EntryPoint",
@@ -1383,14 +1318,14 @@ namespace ExampleClient
 			LogLine(Invariant($"Results for '{_sequenceFileNameComboBox.Text}' using '{modelName}: {entryPointName}'"));
 
             // The results are under ModelData.TestSockets.
-            PropertyObjectInstance testSockets = _propertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
+            PropertyObjectInstance testSockets = _clients.PropertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
 			{
 				Instance = modelData,
 				LookupString = "TestSockets",
 				Options = PropertyOptions.PropOptionNoOptions
 			}).ReturnValue;
 
-			int numberOfTestSockets = _propertyObjectClient.GetNumElements(new PropertyObject_GetNumElementsRequest
+			int numberOfTestSockets = _clients.PropertyObjectClient.GetNumElements(new PropertyObject_GetNumElementsRequest
 			{
 				Instance = testSockets,
 			}).ReturnValue;
@@ -1398,14 +1333,14 @@ namespace ExampleClient
 			for (int socketIndex = 0; socketIndex < numberOfTestSockets; socketIndex++)
 			{
 				string socketResultLookupString = Invariant($"[{socketIndex}].MainSequenceResults.TS.SequenceCall");
-				PropertyObjectInstance socketResults = _propertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
+				PropertyObjectInstance socketResults = _clients.PropertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
 				{
 					Instance = testSockets,
 					LookupString = socketResultLookupString,
 					Options = PropertyOptions.PropOptionNoOptions
 				}).ReturnValue;
 
-				var sequenceCallStatus = _propertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
+				var sequenceCallStatus = _clients.PropertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
 				{
 					Instance = socketResults,
 					LookupString = "Status",
@@ -1423,12 +1358,12 @@ namespace ExampleClient
 
 		private static bool IsSequentialModelName(string processModelName)
         {
-			return string.Compare(processModelName, SequentialModelFilename, StringComparison.OrdinalIgnoreCase) == 0;
+			return string.Compare(processModelName, Constants.SequentialModelFilename, StringComparison.OrdinalIgnoreCase) == 0;
         }
 
 		private void SetExecutionStatus(string executionStatus)
         {
-			if (executionStatus == NotExecutedSequenceFile)
+			if (executionStatus == Constants.NotExecutedSequenceFile)
 			{
 				_executionStatePictureBox.Image = null;
 				_executionStateDescriptionLabel.Text = string.Empty;
@@ -1442,14 +1377,14 @@ namespace ExampleClient
 
 		private int DisplayResults(PropertyObjectInstance resultObject, int indentationLevel)
 		{
-			var resultList = _propertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
+			var resultList = _clients.PropertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
 			{
 				Instance = resultObject,
 				LookupString = "ResultList",
 				Options = PropertyOptions.PropOptionNoOptions
 			}).ReturnValue;
 
-			var numberOfResults = _propertyObjectClient.GetNumElements(new PropertyObject_GetNumElementsRequest
+			var numberOfResults = _clients.PropertyObjectClient.GetNumElements(new PropertyObject_GetNumElementsRequest
 			{
 				Instance = resultList
 			}).ReturnValue;
@@ -1463,21 +1398,21 @@ namespace ExampleClient
 			{
 				for (int index = 0; index < numberOfResults; index++)
 				{
-					var nthResult = _propertyObjectClient.GetPropertyObjectByOffset(new PropertyObject_GetPropertyObjectByOffsetRequest
+					var nthResult = _clients.PropertyObjectClient.GetPropertyObjectByOffset(new PropertyObject_GetPropertyObjectByOffsetRequest
 					{
 						Instance = resultList,
 						ArrayOffset = index,
 						Options = PropertyOptions.PropOptionNoOptions
 					}).ReturnValue;
 
-					var stepName = _propertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
+					var stepName = _clients.PropertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
 					{
 						Instance = nthResult,
 						LookupString = "TS.StepName",
 						Options = PropertyOptions.PropOptionNoOptions
 					}).ReturnValue;
 
-					var stepStatus = _propertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
+					var stepStatus = _clients.PropertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
 					{
 						Instance = nthResult,
 						LookupString = "Status",
@@ -1489,16 +1424,16 @@ namespace ExampleClient
 					LogFaded("  Step ", indentationLevel);
 					LogLine(stepName);
 
-					if (stepStatus == ExecutionStateError)
+					if (stepStatus == Constants.ExecutionStateError)
 					{
-						double code = _propertyObjectClient.GetValNumber(new PropertyObject_GetValNumberRequest
+						double code = _clients.PropertyObjectClient.GetValNumber(new PropertyObject_GetValNumberRequest
 						{
 							Instance = nthResult,
 							LookupString = "Error.Code",
 							Options = PropertyOptions.PropOptionNoOptions
 						}).ReturnValue;
 
-						var message = _propertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
+						var message = _clients.PropertyObjectClient.GetValString(new PropertyObject_GetValStringRequest
 						{
 							Instance = nthResult,
 							LookupString = "Error.Msg",
@@ -1507,7 +1442,7 @@ namespace ExampleClient
 
 						// Indent the Code label below the Step label.
 						// 7 for status column + 2 for empty space before "Step" label + IndentOffsetForOneLevel
-						int labelIndentOffset = IndentOffsetForOneLevel + 9;
+						int labelIndentOffset = Constants.IndentOffsetForOneLevel + 9;
 						string indentedCodeLabel = string.Format("{0," + labelIndentOffset + "}Code ", "");
 
 						LogFaded(indentedCodeLabel, indentationLevel + 1);
@@ -1518,7 +1453,7 @@ namespace ExampleClient
 
 					// If the property TS.SequenceCall exists in the current result, it means it is a 
 					// sequence call. So, recurse to get those results.
-					bool isSequenceCall = _propertyObjectClient.Exists(new PropertyObject_ExistsRequest
+					bool isSequenceCall = _clients.PropertyObjectClient.Exists(new PropertyObject_ExistsRequest
 					{
 						Instance = nthResult,
 						LookupString = "TS.SequenceCall",
@@ -1526,7 +1461,7 @@ namespace ExampleClient
 					}).ReturnValue;
 					if (isSequenceCall)
 					{
-						var sequenceCall = _propertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
+						var sequenceCall = _clients.PropertyObjectClient.GetPropertyObject(new PropertyObject_GetPropertyObjectRequest
 						{
 							Instance = nthResult,
 							LookupString = "TS.SequenceCall",
@@ -1543,10 +1478,10 @@ namespace ExampleClient
 
 		private void OnLoad(object sender, EventArgs e)
 		{
-			// Add some space between the lines in the log and trace messages text.
-			// The space will make the lines more readable.
+            // Add some space between the lines in the log and trace messages text.
+            // The space will make the lines more readable.
             SetLineSpacing(_logTextBox);
-			SetLineSpacing(_executionTraceMessagesTextBox);
+            SetLineSpacing(_executionTraceMessagesTextBox);
 
             _processModelComboBox.SelectedIndex = 0;
 			_entryPointComboBox.SelectedIndex = 0;
@@ -1609,7 +1544,7 @@ namespace ExampleClient
 				using (new AutoWaitCursor(this))
 				{
 					await ApplyActionOnOpenExecutionsAsync(ExecutionAction.Terminate);
-					SetExecutionStatus(ExecutionStateTerminating);
+					SetExecutionStatus(Constants.ExecutionStateTerminating);
 					await UpdateExecutionOptionsStateAsync();
 				}
 			}, "Terminating execution.");
@@ -1628,7 +1563,7 @@ namespace ExampleClient
 						{
 							if (executionInfo.RunState == ExecutionRunStates.ExecRunStateRunning)
 							{
-								tasksToWaitOn.Add(_executionClient.BreakAsync(new Execution_BreakRequest { Instance = executionInfo.Instance }));
+								tasksToWaitOn.Add(_clients.ExecutionClient.BreakAsync(new Execution_BreakRequest { Instance = executionInfo.Instance }));
 							}
 						}
 						await Task.WhenAll(tasksToWaitOn.Select(asynCall => asynCall.ResponseAsync));
@@ -1641,7 +1576,7 @@ namespace ExampleClient
 						{
 							if (executionInfo.RunState == ExecutionRunStates.ExecRunStatePaused)
 							{
-								tasksToWaitOn.Add(_executionClient.ResumeAsync(new Execution_ResumeRequest { Instance = executionInfo.Instance }));
+								tasksToWaitOn.Add(_clients.ExecutionClient.ResumeAsync(new Execution_ResumeRequest { Instance = executionInfo.Instance }));
 							}
 						}
 						await Task.WhenAll(tasksToWaitOn.Select(asynCall => asynCall.ResponseAsync));
@@ -1654,7 +1589,7 @@ namespace ExampleClient
 						{
 							if (executionInfo.RunState != ExecutionRunStates.ExecRunStateStopped)
 							{
-								tasksToWaitOn.Add(_executionClient.TerminateAsync(new Execution_TerminateRequest { Instance = executionInfo.Instance }));
+								tasksToWaitOn.Add(_clients.ExecutionClient.TerminateAsync(new Execution_TerminateRequest { Instance = executionInfo.Instance }));
 							}
 						}
 						await Task.WhenAll(tasksToWaitOn.Select(asynCall => asynCall.ResponseAsync));
@@ -1680,17 +1615,17 @@ namespace ExampleClient
 
 			if (activeExecution != null)
 			{
-				var states = await _executionClient.GetStatesAsync(new Execution_GetStatesRequest { Instance = activeExecution });
+				var states = await _clients.ExecutionClient.GetStatesAsync(new Execution_GetStatesRequest { Instance = activeExecution });
 
-				if (_executionStateDescriptionLabel.Text != ExecutionStateTerminating)
+				if (_executionStateDescriptionLabel.Text != Constants.ExecutionStateTerminating)
 				{
 					if (states.RunState == ExecutionRunStates.ExecRunStatePaused)
 					{
-						SetExecutionStatus(ExecutionStatePaused);
+						SetExecutionStatus(Constants.ExecutionStatePaused);
 					}
 					else if (states.RunState == ExecutionRunStates.ExecRunStateRunning)
 					{
-						SetExecutionStatus(ExecutionStateRunning);
+						SetExecutionStatus(Constants.ExecutionStateRunning);
 					}
 				}
 
@@ -1708,13 +1643,13 @@ namespace ExampleClient
 					}
 					else
 					{
-					var mainExecutionThread = _executionClient.Get_ForegroundThread(new Execution_Get_ForegroundThreadRequest { Instance = activeExecution }).ReturnValue;
-					var sequenceContext = _threadClient.GetSequenceContext(new Thread_GetSequenceContextRequest { Instance = mainExecutionThread, CallStackIndex = 0 }).ReturnValue;
-					var nextStepIndex = _sequenceContextClient.Get_NextStepIndex(new SequenceContext_Get_NextStepIndexRequest { Instance = sequenceContext }).ReturnValue;
+					var mainExecutionThread = _clients.ExecutionClient.Get_ForegroundThread(new Execution_Get_ForegroundThreadRequest { Instance = activeExecution }).ReturnValue;
+					var sequenceContext = _clients.ThreadClient.GetSequenceContext(new Thread_GetSequenceContextRequest { Instance = mainExecutionThread, CallStackIndex = 0 }).ReturnValue;
+					var nextStepIndex = _clients.SequenceContextClient.Get_NextStepIndex(new SequenceContext_Get_NextStepIndexRequest { Instance = sequenceContext }).ReturnValue;
 					if (nextStepIndex >= 0)
 					{
-						var step = _sequenceContextClient.Get_NextStep(new SequenceContext_Get_NextStepRequest { Instance = sequenceContext }).ReturnValue;
-						suspendedAtStepName = _stepClient.Get_Name(new Step_Get_NameRequest { Instance = step }).ReturnValue;
+						var step = _clients.SequenceContextClient.Get_NextStep(new SequenceContext_Get_NextStepRequest { Instance = sequenceContext }).ReturnValue;
+						suspendedAtStepName = _clients.StepClient.Get_Name(new Step_Get_NameRequest { Instance = step }).ReturnValue;
 					}
 				}
 			}
@@ -1741,7 +1676,7 @@ namespace ExampleClient
 			{
 				try
 				{
-					_engineClient.Get_MajorVersion(new Engine_Get_MajorVersionRequest { Instance = _engine });
+					_clients.EngineClient.Get_MajorVersion(new Engine_Get_MajorVersionRequest { Instance = _engine });
 				}
 				catch (Exception exception)
 				{
@@ -1819,8 +1754,8 @@ namespace ExampleClient
 
 		private void OnAddStationGlobalClick(object sender, EventArgs e)
         {
-			PropertyObjectInstance stationGlobals = _engineClient.Get_Globals(new Engine_Get_GlobalsRequest { Instance = _engine }).ReturnValue;
-			int numberOfGlobals = _propertyObjectClient.GetNumSubProperties(
+			PropertyObjectInstance stationGlobals = _clients.EngineClient.Get_Globals(new Engine_Get_GlobalsRequest { Instance = _engine }).ReturnValue;
+			int numberOfGlobals = _clients.PropertyObjectClient.GetNumSubProperties(
 				new PropertyObject_GetNumSubPropertiesRequest
 				{
 					Instance = stationGlobals,
@@ -1829,7 +1764,7 @@ namespace ExampleClient
 
 			string newGlobalName = "NumericGlobal_" + numberOfGlobals;
 
-			_propertyObjectClient.NewSubProperty(
+			_clients.PropertyObjectClient.NewSubProperty(
 				new PropertyObject_NewSubPropertyRequest
 				{
 					Instance = stationGlobals,
@@ -1847,8 +1782,8 @@ namespace ExampleClient
 		private void OnDeleteStationGlobalClick(object sender, EventArgs e)
         {
 			ListViewItem selectedItem = _stationGlobalsListView.Items[_stationGlobalsListView.SelectedIndices[0]];
-			PropertyObjectInstance stationGlobals = _engineClient.Get_Globals(new Engine_Get_GlobalsRequest { Instance = _engine }).ReturnValue;
-			_propertyObjectClient.DeleteSubProperty(new PropertyObject_DeleteSubPropertyRequest
+			PropertyObjectInstance stationGlobals = _clients.EngineClient.Get_Globals(new Engine_Get_GlobalsRequest { Instance = _engine }).ReturnValue;
+			_clients.PropertyObjectClient.DeleteSubProperty(new PropertyObject_DeleteSubPropertyRequest
 			{
 				Instance = stationGlobals,
 				LookupString = selectedItem.Text,
@@ -1866,14 +1801,14 @@ namespace ExampleClient
 
 		private void OnCommitGlobalsToDiskClick(object sender, EventArgs e)
 		{
-			_engineClient.CommitGlobalsToDisk(new Engine_CommitGlobalsToDiskRequest { Instance = _engine, PromptOnSaveConflicts = true });
+			_clients.EngineClient.CommitGlobalsToDisk(new Engine_CommitGlobalsToDiskRequest { Instance = _engine, PromptOnSaveConflicts = true });
 			_commitGlobalsToDiskButton.Enabled = false;
 		}
 
 		private void OnStationModelComboBoxSelectedIndexChanged(object sender, EventArgs e)
 		{
 			StationOptionsInstance stationOptions = GetStationOptions();
-			_stationOptionsClient.Set_StationModelSequenceFilePath(
+			_clients.StationOptionsClient.Set_StationModelSequenceFilePath(
 				new StationOptions_Set_StationModelSequenceFilePathRequest
 				{
 					Instance = stationOptions,
@@ -1891,8 +1826,8 @@ namespace ExampleClient
 		private void SetValueOnGlobalVariable(string newValue)
         {
 			ListViewItem selectedItem = _stationGlobalsListView.Items[_valueForSelectedItemIndex];
-			PropertyObjectInstance stationGlobals = _engineClient.Get_Globals(new Engine_Get_GlobalsRequest { Instance = _engine }).ReturnValue;
-			PropertyObjectInstance globalObject = _propertyObjectClient.GetPropertyObject(
+			PropertyObjectInstance stationGlobals = _clients.EngineClient.Get_Globals(new Engine_Get_GlobalsRequest { Instance = _engine }).ReturnValue;
+			PropertyObjectInstance globalObject = _clients.PropertyObjectClient.GetPropertyObject(
 				new PropertyObject_GetPropertyObjectRequest
 				{
 					Instance = stationGlobals,
@@ -1900,7 +1835,7 @@ namespace ExampleClient
 					Options = PropertyOptions.PropOptionNoOptions
 				}).ReturnValue;
 
-			_propertyObjectClient.SetValString(
+			_clients.PropertyObjectClient.SetValString(
 				new PropertyObject_SetValStringRequest
 				{
 					Instance = globalObject,
@@ -1926,36 +1861,36 @@ namespace ExampleClient
 
 			do
 			{
-				var currentContext = _threadClient.GetSequenceContext(new Thread_GetSequenceContextRequest { Instance = thread, CallStackIndex = 0 }).ReturnValue;
-				rootContext = _sequenceContextClient.Get_Root(new SequenceContext_Get_RootRequest { Instance = currentContext }).ReturnValue;
+				var currentContext = _clients.ThreadClient.GetSequenceContext(new Thread_GetSequenceContextRequest { Instance = thread, CallStackIndex = 0 }).ReturnValue;
+				rootContext = _clients.SequenceContextClient.Get_Root(new SequenceContext_Get_RootRequest { Instance = currentContext }).ReturnValue;
 			} while (rootContext.Id == "0");  // if we ask at the wrong time (frame just ended), we might get zero (null). Not sure of a way to get the root 100% without retries if execution is not paused.
 
-			var locals = _sequenceContextClient.Get_Locals(new SequenceContext_Get_LocalsRequest { Instance = rootContext }).ReturnValue;
-			var modelThreadTypeLocalExists = _propertyObjectClient.Exists(new PropertyObject_ExistsRequest { Instance = locals, LookupString = "ModelThreadType", Options = PropertyOptions.PropOptionNoOptions }).ReturnValue;
+			var locals = _clients.SequenceContextClient.Get_Locals(new SequenceContext_Get_LocalsRequest { Instance = rootContext }).ReturnValue;
+			var modelThreadTypeLocalExists = _clients.PropertyObjectClient.Exists(new PropertyObject_ExistsRequest { Instance = locals, LookupString = "ModelThreadType", Options = PropertyOptions.PropOptionNoOptions }).ReturnValue;
 
 			if (modelThreadTypeLocalExists)
 			{
-				threadInfo.IsController = _propertyObjectClient.GetValBoolean(new PropertyObject_GetValBooleanRequest { Instance = locals, LookupString = "ModelThreadType.IsController", Options = PropertyOptions.PropOptionNoOptions }).ReturnValue;
-				threadInfo.IsTestSocket = _propertyObjectClient.GetValBoolean(new PropertyObject_GetValBooleanRequest { Instance = locals, LookupString = "ModelThreadType.IsTestSocket", Options = PropertyOptions.PropOptionNoOptions }).ReturnValue;
+				threadInfo.IsController = _clients.PropertyObjectClient.GetValBoolean(new PropertyObject_GetValBooleanRequest { Instance = locals, LookupString = "ModelThreadType.IsController", Options = PropertyOptions.PropOptionNoOptions }).ReturnValue;
+				threadInfo.IsTestSocket = _clients.PropertyObjectClient.GetValBoolean(new PropertyObject_GetValBooleanRequest { Instance = locals, LookupString = "ModelThreadType.IsTestSocket", Options = PropertyOptions.PropOptionNoOptions }).ReturnValue;
 
 				var propertyObjectInstance = new PropertyObjectInstance() { Id = rootContext.Id };
-				threadInfo.SocketIndex = (int)_propertyObjectClient.GetValNumber(new PropertyObject_GetValNumberRequest { Instance = propertyObjectInstance, LookupString = "Runstate.TestSockets.MyIndex", Options = PropertyOptions.PropOptionNoOptions }).ReturnValue;
+				threadInfo.SocketIndex = (int)_clients.PropertyObjectClient.GetValNumber(new PropertyObject_GetValNumberRequest { Instance = propertyObjectInstance, LookupString = "Runstate.TestSockets.MyIndex", Options = PropertyOptions.PropOptionNoOptions }).ReturnValue;
 			}
 
 			if (threadInfo.IsTestSocket && !threadInfo.IsController)
 			{
-				var parameters = _sequenceContextClient.Get_Parameters(new SequenceContext_Get_ParametersRequest { Instance = rootContext }).ReturnValue;
-				var parentControllerThread = _propertyObjectClient.GetValInterface(new PropertyObject_GetValInterfaceRequest { Instance = parameters, LookupString = "ParentThread", Options = PropertyOptions.PropOptionNoOptions }).ReturnValue;
+				var parameters = _clients.SequenceContextClient.Get_Parameters(new SequenceContext_Get_ParametersRequest { Instance = rootContext }).ReturnValue;
+				var parentControllerThread = _clients.PropertyObjectClient.GetValInterface(new PropertyObject_GetValInterfaceRequest { Instance = parameters, LookupString = "ParentThread", Options = PropertyOptions.PropOptionNoOptions }).ReturnValue;
 				var threadInstance = new ThreadInstance { Id = parentControllerThread.Id };
-				var execution = _threadClient.Get_Execution(new Thread_Get_ExecutionRequest { Instance = threadInstance }).ReturnValue;
-				threadInfo.ParentControllerThreadId = _threadClient.Get_Id(new Thread_Get_IdRequest { Instance = threadInstance }).ReturnValue;
-				threadInfo.ParentControllerExecutionId = _executionClient.Get_Id(new Execution_Get_IdRequest { Instance = execution }).ReturnValue;
+				var execution = _clients.ThreadClient.Get_Execution(new Thread_Get_ExecutionRequest { Instance = threadInstance }).ReturnValue;
+				threadInfo.ParentControllerThreadId = _clients.ThreadClient.Get_Id(new Thread_Get_IdRequest { Instance = threadInstance }).ReturnValue;
+				threadInfo.ParentControllerExecutionId = _clients.ExecutionClient.Get_Id(new Execution_Get_IdRequest { Instance = execution }).ReturnValue;
 			}				
 		}
 
 		private void ListExecutionsAndThreads()
 		{
-			if (_engineClient == null)
+			if (_clients.EngineClient == null)
 		{
 				LogLine("NOT CONNECTED");
 			}
@@ -1998,14 +1933,14 @@ namespace ExampleClient
 
 			ExecutionsInstance executions = GetAllOpenExecutions();
 
-			var numberOfExecutions = _executionsClient.Get_Count(new Executions_Get_CountRequest { Instance = executions }).ReturnValue;
-			int activeExecutionId = _executionClient.Get_Id(new Execution_Get_IdRequest { Instance = _activeExecution }).ReturnValue;
+			var numberOfExecutions = _clients.ExecutionsClient.Get_Count(new Executions_Get_CountRequest { Instance = executions }).ReturnValue;
+			int activeExecutionId = _clients.ExecutionClient.Get_Id(new Execution_Get_IdRequest { Instance = _activeExecution }).ReturnValue;
 
 			// For each execution, check if the id or the parent execution id matches the active execution.
 			for (int executionIndex = 0; executionIndex < numberOfExecutions; executionIndex++)
 			{
-				var execution = _executionsClient.Get_Item(new Executions_Get_ItemRequest { Instance = executions, ItemIdx = executionIndex }).ReturnValue;
-				var numberOfThreads = _executionClient.Get_NumThreads(new Execution_Get_NumThreadsRequest { Instance = execution }).ReturnValue;
+				var execution = _clients.ExecutionsClient.Get_Item(new Executions_Get_ItemRequest { Instance = executions, ItemIdx = executionIndex }).ReturnValue;
+				var numberOfThreads = _clients.ExecutionClient.Get_NumThreads(new Execution_Get_NumThreadsRequest { Instance = execution }).ReturnValue;
 
 				// If the number of threads is zero, it means the execution has completed so skip it.
 				if (numberOfThreads == 0)
@@ -2015,36 +1950,36 @@ namespace ExampleClient
 
 				var executionInfo = new ExecutionInfo(execution)
 				{
-					ExecutionId = _executionClient.Get_Id(new Execution_Get_IdRequest { Instance = execution }).ReturnValue
+					ExecutionId = _clients.ExecutionClient.Get_Id(new Execution_Get_IdRequest { Instance = execution }).ReturnValue
 				};
 
 				bool executionStartedByClient = executionInfo.ExecutionId == activeExecutionId;
 				if (!executionStartedByClient)
 				{
 					// Get the thread info which includes the execution parent id
-					var thread = _executionClient.GetThread(new Execution_GetThreadRequest { Instance = execution, Index = 0 }).ReturnValue;
+					var thread = _clients.ExecutionClient.GetThread(new Execution_GetThreadRequest { Instance = execution, Index = 0 }).ReturnValue;
 					IdentifyThread(thread, out ThreadInfo threadInfo);
 
 					executionStartedByClient = threadInfo.ParentControllerExecutionId == activeExecutionId;
 					if (executionStartedByClient && getThreadInfo)
 				{
-						threadInfo.Name = _threadClient.Get_DisplayName(new Thread_Get_DisplayNameRequest { Instance = thread }).ReturnValue;
+						threadInfo.Name = _clients.ThreadClient.Get_DisplayName(new Thread_Get_DisplayNameRequest { Instance = thread }).ReturnValue;
 						executionInfo.Threads.Add(threadInfo);
 					}
 				}
 
 				if (executionStartedByClient)
                 {
-					executionInfo.Name = _executionClient.Get_DisplayName(new Execution_Get_DisplayNameRequest { Instance = execution }).ReturnValue;
-					executionInfo.RunState = _executionClient.GetStates(new Execution_GetStatesRequest { Instance = execution }).RunState;
+					executionInfo.Name = _clients.ExecutionClient.Get_DisplayName(new Execution_Get_DisplayNameRequest { Instance = execution }).ReturnValue;
+					executionInfo.RunState = _clients.ExecutionClient.GetStates(new Execution_GetStatesRequest { Instance = execution }).RunState;
 
 					if (getThreadInfo)
 					{
 						for (int threadIndex = 1; threadIndex < numberOfThreads; threadIndex++)
 					{
-							var thread = _executionClient.GetThread(new Execution_GetThreadRequest { Instance = execution, Index = threadIndex }).ReturnValue;
+							var thread = _clients.ExecutionClient.GetThread(new Execution_GetThreadRequest { Instance = execution, Index = threadIndex }).ReturnValue;
 							IdentifyThread(thread, out ThreadInfo threadInfo);
-							threadInfo.Name = _threadClient.Get_DisplayName(new Thread_Get_DisplayNameRequest { Instance = thread }).ReturnValue;
+							threadInfo.Name = _clients.ThreadClient.Get_DisplayName(new Thread_Get_DisplayNameRequest { Instance = thread }).ReturnValue;
 							executionInfo.Threads.Add(threadInfo);
 						}
 					}
@@ -2060,7 +1995,7 @@ namespace ExampleClient
         {
 			var applicationMgr = new ApplicationMgrInstance { Id = "ApplicationMgr" };
 
-			return _applicationMgrClient.Get_Executions(new ApplicationMgr_Get_ExecutionsRequest { Instance = applicationMgr }).ReturnValue;
+			return _clients.ApplicationMgrClient.Get_Executions(new ApplicationMgr_Get_ExecutionsRequest { Instance = applicationMgr }).ReturnValue;
 		}
 
 		private void OnListThreadsButtonClick(object sender, EventArgs e)
@@ -2078,7 +2013,7 @@ namespace ExampleClient
         private void OnEnableTracingCheckBoxCheckStateChanged(object sender, EventArgs e)
         {
 			StationOptionsInstance stationOptions = GetStationOptions();
-			_stationOptionsClient.Set_TracingEnabled(
+			_clients.StationOptionsClient.Set_TracingEnabled(
 				new StationOptions_Set_TracingEnabledRequest
 				{
 					Instance = stationOptions,
@@ -2094,9 +2029,9 @@ namespace ExampleClient
 		{
 			return stepStatus.Trim() switch
 			{
-				ExecutionStateError or ExecutionStateFailed => Color.FromArgb(241, 178, 185),
-				ExecutionStatePassed => Color.FromArgb(187, 237, 196),
-				StepResultSkipped => Color.FromArgb(192, 192, 192),
+                Constants.ExecutionStateError or Constants.ExecutionStateFailed => Color.FromArgb(241, 178, 185),
+                Constants.ExecutionStatePassed => Color.FromArgb(187, 237, 196),
+                Constants.StepResultSkipped => Color.FromArgb(192, 192, 192),
 				_ => SystemColors.Window,
 			};
 		}
@@ -2105,6 +2040,7 @@ namespace ExampleClient
         {
 			Log(lineToLog + Environment.NewLine, indentationLevel);
 		}
+
 		private void Log(string stringToLog, int indentationLevel = 0)
         {
 			stringToLog = GetIndentSpace(indentationLevel) + stringToLog;
@@ -2142,7 +2078,7 @@ namespace ExampleClient
 
 		private void LogImpl(string stringToLog, Color textBackgroundColor, int indentationLevel = 0, bool overlayColor = true)
         {
-			int indentOffset = indentationLevel * IndentOffsetForOneLevel;
+			int indentOffset = indentationLevel * Constants.IndentOffsetForOneLevel;
             int startSelection = _logTextBox.TextLength + indentOffset;
 			Color originalSelectionBackgroundColor = _logTextBox.SelectionBackColor;
 
@@ -2156,7 +2092,7 @@ namespace ExampleClient
 			else
 			{
                 // When not overlaying the color, we need to add a box with the given color before the text.
-                selectionLength = ColorBoxWidth;
+                selectionLength = Constants.ColorBoxWidth;
                 stringToLog = stringToLog.Insert(indentOffset, ColorBoxSpace);
 			}
 
@@ -2265,7 +2201,7 @@ namespace ExampleClient
 			{
 				// Insertion starts at the beginning of status.
 				// Add 2 additional spaces to include space between status and "Step" label;
-				startIndex -= (StatusLength + 2);
+				startIndex -= (Constants.StatusLength + 2);
 
 				// Insert status box color space
                 traceMessage = traceMessage.Insert(startIndex, ColorBoxSpace);
@@ -2307,16 +2243,16 @@ namespace ExampleClient
             {
                 // Selection starts at the beginning of the colorbox space.
                 // Add 2 additional spaces to include space between status and "Step" label;
-                startSelection -= (StatusLength + ColorBoxSpace.Length + 2); 
+                startSelection -= (Constants.StatusLength + ColorBoxSpace.Length + 2); 
 
                 Color originalSelectionBackgroundColor = _executionTraceMessagesTextBox.SelectionBackColor;
-                string status = _executionTraceMessagesTextBox.Text.Substring(startSelection + ColorBoxSpace.Length, StatusLength);
+                string status = _executionTraceMessagesTextBox.Text.Substring(startSelection + ColorBoxSpace.Length, Constants.StatusLength);
 
-                _executionTraceMessagesTextBox.Select(startSelection, ColorBoxWidth);
+                _executionTraceMessagesTextBox.Select(startSelection, Constants.ColorBoxWidth);
                 _executionTraceMessagesTextBox.SelectionBackColor = GetResultBackgroundColor(status);
 
                 // Reset selection and color
-                _executionTraceMessagesTextBox.Select(startSelection + ColorBoxWidth, 0);
+                _executionTraceMessagesTextBox.Select(startSelection + Constants.ColorBoxWidth, 0);
                 _executionTraceMessagesTextBox.SelectionBackColor = originalSelectionBackgroundColor;
             }
         }
@@ -2365,7 +2301,7 @@ namespace ExampleClient
 			}
         }
 
-        private void SetLineSpacing(RichTextBox richTextBox)
+        private static void SetLineSpacing(RichTextBox richTextBox)
         {
             // The only way to set line spacing on a RichTextBox is
             // through a EM_SETPARAFORMAT message.

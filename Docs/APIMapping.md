@@ -89,7 +89,18 @@ Each request requires an object instance followed by the input parameter values,
 
 ## Arrays
 
-Array parameters are defined as `repeated` fields in request and response messages. For example, this is how the input parameters of `Engine.SearchFiles`, some of which are arrays, are mapped from the TestStand API to the gRPC API:
+Some arrays in the TestStand API are optional. Since arrays cannot be optional in proto files, a wrapper is created for each array type. Each wrapper has the name *\<ObjectType\>Collection* and has a `repeated` field named *items*.  For example, the collections for an array of PropertyObjectFileInstances and strings are defined as follows
+```
+message PropertyObjectFileInstanceCollection {
+  repeated PropertyObjectFileInstance items = 1;
+}
+
+message stringCollection {
+	repeated string items = 1;
+}
+```
+
+The example below shows how they are used in the call to `Engine.SearchFiles`.
 
 ```
 Class Engine {
@@ -107,18 +118,27 @@ service EngineClass {
 	rpc SearchFiles(EngineClass_SearchFilesRequest) returns (EngineClass_SearchFilesResponse);
 }
 
-message EngineClass_SearchFilesRequest {
-	EngineClassInstance instance = 1;
-	string searchString = 2;
-	SearchOptions SearchOptions = 3;
-	SearchFilterOptions filterOptions = 4;
-	SearchElements elementsToSearch = 5;
-	repeated string limitToAdapters = 6;
-	repeated string limitToNamedProps = 7;
-	repeated string limitToPropsOfNamedTypes = 8;
-	repeated PropertyObjectFileInstance openFilesToSearch = 9;
-	repeated string directoriesAndFilePaths = 10;
+message Engine_SearchFilesRequest {
+  EngineInstance instance = 1;
+  string searchString = 2;
+  SearchOptions SearchOptions = 3;
+  SearchFilterOptions filterOptions = 4;
+  SearchElements elementsToSearch = 5;
+  stringCollection limitToAdapters = 6;
+  stringCollection limitToNamedProps = 7;
+  stringCollection limitToPropsOfNamedTypes = 8;
+  PropertyObjectFileInstanceCollection openFilesToSearch = 9;
+  stringCollection directoriesAndFilePaths = 10;
 }
+```
+
+Since all collections are null by default, an instance of the collection needs to be created and populate if a non-null array is needed for the gRPC API call.  For example, to create instances of limitToAdapters and openFilesToSearch from the example above, the following needs to be done
+```
+searchFilesRequest.LimitToAdapters = new stringCollection();
+searchFilesRequest.LimitToAdapters.Items.Add(adapters);
+
+searchFilesRequest.OpenFilesToSearch = new PropertyObjectFileInstanceCollection();
+searchFilesRequest.OpenFilesToSearch.Items.Add(files);
 ```
 
 # Enums

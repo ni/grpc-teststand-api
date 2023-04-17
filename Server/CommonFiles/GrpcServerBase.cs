@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NationalInstruments.TestStand.Grpc.Server;
+using NationalInstruments.TestStand.Grpc.Server.Utilities;
 using static System.FormattableString;
 
 namespace TestStandGrpcApi
@@ -28,16 +29,13 @@ namespace TestStandGrpcApi
             // From the command line, a configuration file path is specified by using the "-Config" option
             // followed by a file path.
             string configurationFile = GetConfigFilePathFromCommandLineIfSpecified(args);
-            var serverConfiguration = new ServerConfigurationParser(configurationFile);
+            var serverConfiguration = new ServerConfiguration(configurationFile);
             ServerOptions = serverConfiguration.Options;
 
             // To make a connection secure (server-side TLS), the server certificate information needs
             // to be provided in the config file. If the information is left blank or no config file is
             // specified, the connection will not be secured.
-            UsesHttps = !string.IsNullOrEmpty(ServerOptions.ServerCertificatePFXPath)
-                || !string.IsNullOrEmpty(ServerOptions.ServerCertificateFriendlyName)
-                || (!string.IsNullOrEmpty(ServerOptions.ServerCertificatePath)
-                && !string.IsNullOrEmpty(ServerOptions.ServerKeyPath));
+            UsesHttps = ServerOptions.UseSecureConnection;
         }
 
         private static string GetConfigFilePathFromCommandLineIfSpecified(string[] args)
@@ -102,7 +100,9 @@ namespace TestStandGrpcApi
 
                     options.Listen(IPAddress.Any, ServerOptions.Port, listenOptions =>
                     {
-                        listenOptions.Protocols = HttpProtocols.Http2;
+                        // HTTP2 is faster than 1 and should be preferred. Browsers only support HTTP1 for insecure communication,
+                        // so we need to listen on that too to support requests coming from insecure browsers.
+                        listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
                         if (UsesHttps)
                         {
                             try
@@ -120,7 +120,7 @@ namespace TestStandGrpcApi
                     int testingPort = ServerOptions.Port + 1; // Port=5021
                     options.Listen(IPAddress.Any, testingPort, listenOptions =>
                     {
-                        listenOptions.Protocols = HttpProtocols.Http2;
+                        listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
                         if (UsesHttps)
                         {
                             try

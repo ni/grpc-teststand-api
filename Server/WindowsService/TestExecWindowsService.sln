@@ -5,6 +5,8 @@ VisualStudioVersion = 17.2.32616.157
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestExecWindowsService", "TestExecWindowsService.csproj", "{A74A634B-152C-488B-9DC9-03116D0DC29C}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Grpc.Utilities", "..\..\Grpc.Utilities\Grpc.Utilities.csproj", "{F46B9C86-B705-4866-A47E-4826891FEF45}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{A74A634B-152C-488B-9DC9-03116D0DC29C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A74A634B-152C-488B-9DC9-03116D0DC29C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A74A634B-152C-488B-9DC9-03116D0DC29C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F46B9C86-B705-4866-A47E-4826891FEF45}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F46B9C86-B705-4866-A47E-4826891FEF45}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F46B9C86-B705-4866-A47E-4826891FEF45}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F46B9C86-B705-4866-A47E-4826891FEF45}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

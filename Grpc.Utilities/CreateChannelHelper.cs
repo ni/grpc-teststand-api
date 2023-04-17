@@ -1,21 +1,23 @@
-﻿using System;
-using System.Net.Http;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
+﻿using System.Security.Cryptography.X509Certificates;
 using Grpc.Core;
 using Grpc.Net.Client;
-using NationalInstruments.TestStand.Grpc.Net.Client.OO;
 using static System.FormattableString;
 
-namespace ExampleClient
+namespace NationalInstruments.TestStand.Grpc.Client.Utilities
 {
-    internal class CreateChannelHelper : IDisposable
+    public class CreateChannelHelper : IDisposable
     {
+		public static event EventHandler<ValidateGrpcChannelEventArgs> ValidateGrpcChannel;
 		private X509Certificate2 _clientCertificate;
 		private X509Certificate2 _serverCertificate;
         private bool _disposedValue;
 
-		public GrpcChannel OpenChannel(string serverAddress, ClientOptions clientOptions, out bool isSecured, out string connectionErrors)
+		public GrpcChannel OpenChannel(
+			string serverAddress,
+			ClientOptions clientOptions,
+			out string fullServerAddress,
+			out bool isSecured,
+			out string connectionErrors)
 		{
 			// Start with the connection being secured with no errors.
 			isSecured = true;
@@ -43,11 +45,11 @@ namespace ExampleClient
 			// We determine if the connection is secured based on the existence of certificate files.
 			// Alternatively, we can based it on the whether the server address has https or not. However,
 			// this will required adding a new option to the client.
-			GrpcChannel channel = ConnectUsingHttp(true, httpClient, httpHandler, connectionId, clientOptions, serverAddress, out string httpsErrors);
+			GrpcChannel channel = ConnectUsingHttp(true, httpClient, httpHandler, connectionId, clientOptions, serverAddress, out fullServerAddress, out string httpsErrors);
 			if (channel == null)
 			{
 				isSecured = false;
-				channel = ConnectUsingHttp(false, httpClient, httpHandler, connectionId, clientOptions, serverAddress, out string httpErrors);
+				channel = ConnectUsingHttp(false, httpClient, httpHandler, connectionId, clientOptions, serverAddress, out fullServerAddress, out string httpErrors);
 				if (channel == null)
 				{
 					connectionErrors = "Connection to server failed with the following errors:\n\n";
@@ -65,6 +67,7 @@ namespace ExampleClient
 			string connectionId,
 			ClientOptions clientOptions,
 			string serverAddress,
+			out string fullServerAddress,
 			out string errorMessage)
 		{
 			ChannelCredentials channelCredentials;
@@ -80,7 +83,7 @@ namespace ExampleClient
 				httpClient.DefaultRequestHeaders.Add("connection-id", connectionId);
 			}
 
-			string fullServerAddress = useHttps ? "https://" : "http://";
+			fullServerAddress = useHttps ? "https://" : "http://";
 			fullServerAddress += serverAddress + ":" + clientOptions.Port.ToString();
 	
 			var grpcChannel = GrpcChannel.ForAddress(fullServerAddress, new GrpcChannelOptions
@@ -89,7 +92,11 @@ namespace ExampleClient
 				HttpClient = httpClient
 			});
 
-			if (TestServerConnection(grpcChannel, useHttps, out errorMessage))
+			var eventArgs = new ValidateGrpcChannelEventArgs(grpcChannel, useHttps);
+			ValidateGrpcChannel?.Invoke(this, eventArgs);
+			errorMessage = eventArgs.ErrorMessage;
+
+			if (string.IsNullOrWhiteSpace(eventArgs.ErrorMessage))
 			{
 				return grpcChannel;
 			}
@@ -198,42 +205,6 @@ namespace ExampleClient
 			}
 
 			return null;
-		}
-
-		private bool TestServerConnection(GrpcChannel grpcChannel, bool isSecureConnection, out string errorMessage)
-		{
-			bool connectionSucceeded = true;
-			errorMessage = null;
-			try
-			{
-				var instanceLifetimeClient = new InstanceLifetime.InstanceLifetimeClient(grpcChannel);
-				instanceLifetimeClient.GetDefaultLifespan(new InstanceLifetime_GetDefaultLifespanRequest(), 
-					new CallOptions().WithDeadline(DateTime.UtcNow.AddSeconds(10)));
-			}
-			catch (Exception exception)
-			{
-				connectionSucceeded = false;
-
-				string connectionType = isSecureConnection ? "secured (https)" : "not-secured (http)";
-				errorMessage = Invariant($"ERROR: Failed to connect to server using a '{connectionType}' connection with the following error:\n");
-
-				string details = string.Empty;
-
-				if (exception is RpcException rpcException)
-				{
-					details = rpcException.Status.Detail;
-				}
-
-				// for deadline exceeded, the exception was RpcException, but rpcException.Status.Detail was empty, but exception.Message was not
-				if (string.IsNullOrEmpty(details))
-				{
-					details += exception.Message;  
-				}
-
-				errorMessage += details;
-			}
-
-			return connectionSucceeded;
 		}
 
 		protected virtual void Dispose(bool disposing)

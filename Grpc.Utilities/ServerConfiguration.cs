@@ -1,44 +1,63 @@
-﻿using System;
-using System.IO;
+﻿using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace TestStandGrpcApi
+namespace NationalInstruments.TestStand.Grpc.Server.Utilities
 {
     /// <summary>
-    /// This parser will read the server json configuration file and will load any specified certificates.
+    /// The ServerConfiguration reads the server json configuration file and will load any specified certificates.
     /// It expects the names and locations specified in this page: https://github.com/ni/grpc-device/wiki/Server-Security-Support.
     /// </summary>
-    public class ServerConfigurationParser
-    {
-        private const string CertificatesFolderName = "certs";
-        private const string DefaultConfigFileName = "server_config.json";
+    public class ServerConfiguration
+	{
+		internal const string DefaultCertificatesFolderName = "certs";
+		private const string DefaultConfigFileName = "server_config.json";
 
-        public ServerConfigurationParser(string configFilePath)
+        internal static string GetDefaultConfigFilePath() => Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), DefaultConfigFileName);
+		internal static string GetCertificateDirectoryPath() => Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), DefaultCertificatesFolderName);
+
+		public ServerConfiguration(bool useSecureConnection)
+            : this(useSecureConnection, GetDefaultConfigFilePath(), GetCertificateDirectoryPath())
         {
-            if (string.IsNullOrEmpty(configFilePath))
-            {
-				configFilePath = Path.Combine(AppContext.BaseDirectory, DefaultConfigFileName);
-            }
+		}
 
-            if (File.Exists(configFilePath))
+        public ServerConfiguration(string configFilePath)
+            : this(useSecureConnection: true, configFilePath, GetCertificateDirectoryPath())
+        {
+        }
+
+        public ServerConfiguration(bool useSecureConnection, string configFilePath, string certificateDirectoryPath)
+        {
+            InitializeServerConfiguration(useSecureConnection, configFilePath ?? GetDefaultConfigFilePath(), certificateDirectoryPath);
+		}
+
+		private void InitializeServerConfiguration(bool useSecureConnection, string configFilePath, string certificateDirectoryPath)
+		{
+            if (!useSecureConnection)
             {
+                Options = new ServerOptions();
+            }
+            else
+            {
+                if (!File.Exists(configFilePath))
+                {
+                    throw new ArgumentException(configFilePath, nameof(configFilePath));
+                }
+
+                if (!Directory.Exists(certificateDirectoryPath))
+                {
+                    throw new ArgumentException(certificateDirectoryPath, nameof(certificateDirectoryPath));
+                }
+
                 var input = new StreamReader(configFilePath);
                 var serializerOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
                 Options = JsonSerializer.Deserialize<ServerOptions>(input.ReadToEnd(), serializerOptions);
-
-                string certificatesFolder = Path.Combine(Path.GetDirectoryName(configFilePath), CertificatesFolderName);
-                Options.SetCertificatePaths(certificatesFolder);
-            }
-            else
-            {
-                // If no config file exists, assume server does not want to use certificates
-                Options = new ServerOptions();
+                Options.SetCertificatePaths(certificateDirectoryPath);
             }
         }
 
-        public ServerOptions Options { get; private set; }
+		public ServerOptions Options { get; private set; }
     }
 
     public class ServerOptions
@@ -46,9 +65,11 @@ namespace TestStandGrpcApi
         // 5020 is used to avoid conflicting with NI Services
         public int Port { get; set; } = 5020;
 
-        public Security Security { get; set; } = new Security();
+        public ServerSecurity Security { get; set; } = new ServerSecurity();
 
         public Cors Cors { get; set; } = new Cors();
+
+        public bool UseSecureConnection { get; set; }
 
         public string ServerCertificatePath { get; set; } = null;
 
@@ -87,10 +108,14 @@ namespace TestStandGrpcApi
             {
                 ServerCertificatePFXPath = Path.Combine(certificatesFolder, Security.ServerCertificagePFXFilename);
             }
+
+            UseSecureConnection = !string.IsNullOrEmpty(ServerCertificatePFXPath)
+                || !string.IsNullOrEmpty(ServerCertificateFriendlyName)
+                || (!string.IsNullOrEmpty(ServerCertificatePath) && !string.IsNullOrEmpty(ServerKeyPath));
         }
     }
     
-    public class Security
+    public class ServerSecurity
     {
         [JsonPropertyName("server_cert")]
         public string ServerCertificateFilename { get; set; } = string.Empty;
