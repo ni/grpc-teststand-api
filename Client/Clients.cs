@@ -7,7 +7,7 @@ using NationalInstruments.TestStand.UI.Grpc;
 
 namespace ExampleClient
 {
-    internal class Clients
+    public class Clients
     {
         private GrpcChannel _gRPCChannel = null;
         private readonly CreateChannelHelper _channelHelper = new();

@@ -10,15 +10,14 @@ namespace NationalInstruments.TestStand.Grpc.Client.Utilities
     /// </summary>
     public class ClientConfiguration
     {
-        private const string CertificatesFolderName = "certs";
-        private const string DefaultConfigFileName = "client_config.json";
+        private static readonly string assemblyDirectoryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
+        public static string DefaultConfigFilepath { get; } = Path.Combine(assemblyDirectoryPath, "client_config.json");
+        public static string DefaultCertificatesFolderpath { get; } = Path.Combine(assemblyDirectoryPath, "certs");
 
         public ClientConfiguration(bool useSecureConnection)
         {
-            string configFilePath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), DefaultConfigFileName);
-            string certificatesDirectoryPath = Path.Combine(Path.GetDirectoryName(configFilePath), CertificatesFolderName);
-
-            InitializeClientConfiguration(useSecureConnection, configFilePath, certificatesDirectoryPath);
+            InitializeClientConfiguration(useSecureConnection, DefaultConfigFilepath, DefaultCertificatesFolderpath);
         }
 
         public ClientConfiguration(bool useSecureConnection, string configFilePath, string certificatesDirectoryPath)

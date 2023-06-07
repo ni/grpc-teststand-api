@@ -77,7 +77,8 @@ namespace ExampleClient
 			_clientOptions = options;
 			_serverAddress = _serverAddressTextBox.Text;
 
-			AppendPortNumberToAddress();
+            SetupChannelValidationCallback();
+            AppendPortNumberToAddress();
             InitializeImageList();
 			SetMonospacedFontInTraceAndLogControls();
 			UpdateTraceMessagesControls();
@@ -95,6 +96,33 @@ namespace ExampleClient
 			_addGlobalButton.Image = new Bitmap(_imageList[Constants.AddGlobal]);
 			_deleteGlobalButton.Image = new Bitmap(_imageList[Constants.DeleteGlobal]);
 		}
+
+		private void SetupChannelValidationCallback()
+		{
+            CreateChannelHelper.ValidateGrpcChannel += (_, args) =>
+            {
+                try
+                {
+                    var instanceLifetimeClient = new InstanceLifetime.InstanceLifetimeClient(args.GrpcChannel);
+                    instanceLifetimeClient.GetDefaultLifespan(new InstanceLifetime_GetDefaultLifespanRequest());
+                }
+                catch (Exception exception)
+                {
+                    string connectionType = args.UseHttps ? "secured (https)" : "not-secured (http)";
+                    string errorMessage = Invariant($"ERROR: Failed to connect to server using a '{connectionType}' connection with the following error:\n");
+
+                    if (exception is RpcException rpcException)
+                    {
+                        errorMessage += rpcException.Status.Detail;
+                    }
+                    else
+                    {
+                        errorMessage += exception.Message;
+                    }
+                    args.SetErrorMessage(errorMessage);
+                }
+            };
+        }
 
 		private void AppendPortNumberToAddress()
 		{
@@ -306,19 +334,25 @@ namespace ExampleClient
             }, null, null, cancellationTokenSource.Token);
 
             var uiMessageEventStream = call.ResponseStream;
+			var threadCompletionSource = new TaskCompletionSource();
 
-            // read the message stream from a separate thread. Otherwise the asynchronous message reading loop would block whenever the thread in which it is established
-            // blocks in a synchronous call, including synchronous gRPC calls. Because some TestStand gRPC API calls can generate events that require replies before completing
-            // the call, event loops should not be in a thread that might make non-async calls to the TestStand API, or any other calls that might block for an unbounded period.
-            var task = Task.Run(() => HandleUiEventsAsync(demoEventMessages, call, uiMessageEventStream));
+			// read the message stream from a separate thread. Otherwise the asynchronous message reading loop would block whenever the thread in which it is established
+			// blocks in a synchronous call, including synchronous gRPC calls. Because some TestStand gRPC API calls can generate events that require replies before completing
+			// the call, event loops should not be in a thread that might make non-async calls to the TestStand API, or any other calls that might block for an unbounded period.
+			Task.Factory.StartNew(() => 
+			{ 
+				HandleUiEventsAsync(demoEventMessages, call, uiMessageEventStream, cancellationTokenSource.Token, threadCompletionSource).Wait();
+			}, TaskCreationOptions.LongRunning);
 
-            return new Tuple<Task, System.Threading.CancellationTokenSource>(task, cancellationTokenSource);
+            return new Tuple<Task, System.Threading.CancellationTokenSource>(threadCompletionSource.Task, cancellationTokenSource);
         }
 
 		private async Task HandleUiEventsAsync(
 			bool demoEventMessages,
 			AsyncServerStreamingCall<Engine_GetEvents_UIMessageEventResponse> call,
-			IAsyncStreamReader<Engine_GetEvents_UIMessageEventResponse> uiMessageEventStream)
+			IAsyncStreamReader<Engine_GetEvents_UIMessageEventResponse> uiMessageEventStream,
+			CancellationToken cancellationToken,
+			TaskCompletionSource threadCompletionTokenSource)
 		{
 			const int IndentOffset = 4;
 			const int StatusLength = 7;
@@ -464,9 +498,8 @@ namespace ExampleClient
 			}
 			catch (RpcException rpcException)
 			{
-				// When disconnecting from server, the client cancels the event stream. So, a cancelled
-				// exception should not be treated as an error.
-				if (rpcException.StatusCode == StatusCode.Cancelled)
+				// When disconnecting from the server, the client cancels the event stream. This usually results in an exception with a status code of StatusCode.Cancelled, but other codes are possible.
+				if (cancellationToken.IsCancellationRequested)
 				{
 					LogLine("The UI message event stream has been cancelled.");
 				}
@@ -481,6 +514,7 @@ namespace ExampleClient
 			}
 
 			call.Dispose(); // cancels the call, in case we exited with an error
+			threadCompletionTokenSource.SetResult();
 		}
 
 		private void GetEngineReference()
