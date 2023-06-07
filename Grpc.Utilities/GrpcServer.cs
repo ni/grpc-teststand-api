@@ -47,14 +47,15 @@ namespace NationalInstruments.TestStand.Grpc.Server.Utilities
             }
         }
 
-        public static Process Start(string grpcServiceExecutablePath)
+        public static Process Start(string grpcServiceExecutablePath, bool useSecureConnection)
         {
             if (!File.Exists(grpcServiceExecutablePath))
             {
                 throw new FileNotFoundException($"File not found: \"{grpcServiceExecutablePath}\"");
             }
 
-            var process = Process.Start(grpcServiceExecutablePath);
+            string arguments = !useSecureConnection ? "-NotSecure" : string.Empty;
+            var process = Process.Start(grpcServiceExecutablePath, arguments);
             return process;
         }
 
@@ -269,25 +270,43 @@ namespace NationalInstruments.TestStand.Grpc.Server.Utilities
                 RedirectStandardOutput = true,
                 // Expecting netstat to return: [Proto] [Local Address] [Foreign Address] [State] [PID]
                 // Find mathing strings for port, listening and process id.  
-                Arguments = $"/C netstat -ano | findstr /l \":{port} \" | findstr /i /l \" LISTENING \" | findstr /e /l \"{processId}\""
+                Arguments = $"/C netstat -ano | findstr /l \":{port} \" | findstr /i /l \" LISTENING \"" + ((processId != 0) ? $" | findstr /e /l \"{processId}\"" : string.Empty)
             };
 
-            for (int i = 0; i < NumberOfTimesToTryToCheckServerIsRunning; i++)
+            // need to search for LISTENING or ESTABLISHED. I tried searching for both with findstr, but it seemed to not work as described in the docs. 
+            // rather than investigate into that, I search for each separately
+            var startInfo2 = new ProcessStartInfo()
             {
-                // This validation method verifies that the server is up and listening at known port numbers by looking at the netstat command ouptut.
-                var netstatProcess = Process.Start(startInfo);
-                string output = netstatProcess.StandardOutput.ReadToEnd();
+                FileName = command,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                // Expecting netstat to return: [Proto] [Local Address] [Foreign Address] [State] [PID]
+                // Find mathing strings for port, established and process id.  
+                Arguments = $"/C netstat -ano | findstr /l \":{port} \" | findstr /i /l \" ESTABLISHED \"" + ((processId != 0) ? $" | findstr /e /l \"{processId}\"" : string.Empty)
+            };
 
-                // Terminate loop early if port is found.
-                if (!string.IsNullOrEmpty(output))
-				{
-                    return;
-				}
+
+            for (int i = 0; i < NumberOfTimesToTryToCheckServerIsRunning; i++)
+            {                
+                if (RunAndCheckForOutput(startInfo) || RunAndCheckForOutput(startInfo2))
+                {
+                    return; // Terminate loop early if port is found.
+                }
 
                 Thread.Sleep(waitTimeoutInMilliSeconds);
             }
 
-            throw new Exception($"Specified process [{processId}] is not listening at port [{port}]. Validated with command [{startInfo.Arguments}]");
+            throw new Exception($"Specified process [{processId}] is not listening or established at port [{port}]. Validated with commands: [{startInfo.Arguments}] and [{startInfo2.Arguments}]");
+
+
+            bool RunAndCheckForOutput(ProcessStartInfo processStartInfo)
+			{
+                // This validation method verifies that the server is up and listening at known port numbers by looking at the netstat command ouptut.
+                var netstatProcess = Process.Start(processStartInfo);
+                string output = netstatProcess.StandardOutput.ReadToEnd();
+
+                return !string.IsNullOrEmpty(output);
+            }
         }
     }
 }

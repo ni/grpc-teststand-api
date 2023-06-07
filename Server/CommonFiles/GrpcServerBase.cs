@@ -28,8 +28,8 @@ namespace TestStandGrpcApi
 		{
             // From the command line, a configuration file path is specified by using the "-Config" option
             // followed by a file path.
-            string configurationFile = GetConfigFilePathFromCommandLineIfSpecified(args);
-            var serverConfiguration = new ServerConfiguration(configurationFile);
+            (string configurationFile, bool useSecureConnection) = GetOptionsFromCommandLine(args);
+            var serverConfiguration = new ServerConfiguration(useSecureConnection, configurationFile);
             ServerOptions = serverConfiguration.Options;
 
             // To make a connection secure (server-side TLS), the server certificate information needs
@@ -38,8 +38,11 @@ namespace TestStandGrpcApi
             UsesHttps = ServerOptions.UseSecureConnection;
         }
 
-        private static string GetConfigFilePathFromCommandLineIfSpecified(string[] args)
+        private static (string, bool) GetOptionsFromCommandLine(string[] args)
         {
+            string configurationFile = null;
+            bool useSecureConnection = true;
+
             for (int index = 0; index < args.Length; index++)
             {
                 string argument = args[index];
@@ -49,14 +52,18 @@ namespace TestStandGrpcApi
                     index++;
                     if (index < args.Length)
                     {
-                        return args[index];
+                        configurationFile = args[index];
                     }
 
                     throw new Exception("No config json file path specified.");
                 }
+                else if (string.Equals(argument, "-NotSecure", StringComparison.OrdinalIgnoreCase))
+                {
+                    useSecureConnection = false;
+                }
             }
 
-            return null;
+            return (configurationFile, useSecureConnection);
         }
 
         protected static IHost ServerHost { get; set; }
@@ -93,6 +100,11 @@ namespace TestStandGrpcApi
                     FilterLoggingBuilderExtensions.AddFilter(logging, "Grpc", LogLevel.None);
                 }).ConfigureKestrel(options =>
                 {
+                    options.ConfigureEndpointDefaults(configureOptions =>
+                    {
+                        configureOptions.Protocols = HttpProtocols.Http2;
+                    });
+
                     options.ConfigureHttpsDefaults(configureOptions =>
                     {
                         ConfigureSecureConnectionIfRequired(configureOptions);
@@ -100,9 +112,6 @@ namespace TestStandGrpcApi
 
                     options.Listen(IPAddress.Any, ServerOptions.Port, listenOptions =>
                     {
-                        // HTTP2 is faster than 1 and should be preferred. Browsers only support HTTP1 for insecure communication,
-                        // so we need to listen on that too to support requests coming from insecure browsers.
-                        listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
                         if (UsesHttps)
                         {
                             try
@@ -120,7 +129,6 @@ namespace TestStandGrpcApi
                     int testingPort = ServerOptions.Port + 1; // Port=5021
                     options.Listen(IPAddress.Any, testingPort, listenOptions =>
                     {
-                        listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
                         if (UsesHttps)
                         {
                             try

@@ -13,16 +13,11 @@ namespace NationalInstruments.TestStand.Grpc.Server.Utilities
 		internal const string DefaultCertificatesFolderName = "certs";
 		private const string DefaultConfigFileName = "server_config.json";
 
-        internal static string GetDefaultConfigFilePath() => Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), DefaultConfigFileName);
-		internal static string GetCertificateDirectoryPath() => Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), DefaultCertificatesFolderName);
+        internal static string GetDefaultConfigFilePath() => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, DefaultConfigFileName);
+		internal static string GetCertificateDirectoryPath() => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, DefaultCertificatesFolderName);
 
-		public ServerConfiguration(bool useSecureConnection)
-            : this(useSecureConnection, GetDefaultConfigFilePath(), GetCertificateDirectoryPath())
-        {
-		}
-
-        public ServerConfiguration(string configFilePath)
-            : this(useSecureConnection: true, configFilePath, GetCertificateDirectoryPath())
+        public ServerConfiguration(bool useSecureConnection, string configFilePath)
+        : this(useSecureConnection, configFilePath, GetCertificateDirectoryPath())
         {
         }
 

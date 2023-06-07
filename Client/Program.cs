@@ -23,7 +23,10 @@ namespace ExampleClient
 			// is specified, we will assume it is the path to the config file since no 
 			// other command line arguments are supported.
 			string configurationFile = GetConfigFilePathFromCommandLineIfSpecified(args);
-			var clientConfiguration = new ClientConfigurationParser(configurationFile);
+			var clientConfiguration = new ClientConfiguration(
+				useSecureConnection: true,
+                string.IsNullOrEmpty(configurationFile) ? ClientConfiguration.DefaultConfigFilepath : configurationFile, 
+				ClientConfiguration.DefaultCertificatesFolderpath);
 			ClientOptions options = clientConfiguration.Options;
 
 			Application.Run(new Example(options));

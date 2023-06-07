@@ -107,6 +107,7 @@ After running the sequence file on a server, you can optionally use the TestMoni
 | [20](https://www.nuget.org/packages/NationalInstruments.TestStand.Grpc.Client/0.5.0-dev.20) | None |
 | [21](https://www.nuget.org/packages/NationalInstruments.TestStand.Grpc.Client/0.5.0-dev.21) | None |
 | [22](https://www.nuget.org/packages/NationalInstruments.TestStand.Grpc.Client/0.5.0-dev.22) | Wrappers for all array parameters have been created. The wrappers have the name *\<ObjectType\>Collection*. To pass a non-null array, an instance of the collection needs to be created and populated. See Arrays section in [APIMapping](Docs/APIMapping.md#arrays) document. |
+| [23](https://www.nuget.org/packages/NationalInstruments.TestStand.Grpc.Client/0.5.0-dev.23) | The namespace `TSSync.Grpc` was renamed to `NationalInstruments.TestStand.Synchronization.Grpc`. Also, the name of the proto file TSSync.proto was renamed to NationalInstruments.TestStand.Synchronization.proto.|
 
 ---
 
