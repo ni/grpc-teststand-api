@@ -1,4 +1,4 @@
-# TestStand gRPC API Example Technology Preview
+# TestStand gRPC API Example Early Access Release
 
 This example demonstrates how to use the TestStand gRPC API from a client application to get status, and control a TestStand user interface (UI) or a TestStand Windows service running a gRPC service on a local or remote machine. This example consists of three C# .NET projects: a client, a UI server, and a Windows service, which you can run on separate machines to remotely execute TestStand sequence files. 
 
